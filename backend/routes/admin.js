@@ -1,7 +1,6 @@
 const router = require('express').Router()
 const pool   = require('../db')
 const { requireSuperAdmin, requireAdmin } = require('../middleware/roles')
-const { Parser } = require('json2csv').default || require('json2csv')
 
 // ── GET /api/admin/stats — overview numbers ───────────────────────────────
 router.get('/stats', requireAdmin, async (req, res) => {
