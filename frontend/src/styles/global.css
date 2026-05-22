@@ -170,3 +170,31 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 @media (max-width: 400px) {
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
 }
+
+/* ─── Admin List Rows (Mobile Fix) ───────────────────────── */
+.admin-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .admin-list-actions {
+    width: 100%;
+    justify-content: space-between;
+    border-top: 1px dashed var(--border2);
+    padding-top: 10px;
+    margin-top: 4px;
+  }
+  .admin-list-actions > div:first-child {
+    text-align: left !important;
+  }
+}
