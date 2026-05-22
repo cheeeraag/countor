@@ -6,8 +6,13 @@ const { Parser } = require('json2csv').default || require('json2csv')
 // ── GET /api/admin/stats — overview numbers ───────────────────────────────
 router.get('/stats', requireAdmin, async (req, res) => {
   try {
-    // FIX: Use req.user.org_id instead of orgId
-    const safeOrgId = req.user.org_id || req.user.orgId;
+    // FIX: Look at the URL query first, then fallback to the token
+    const safeOrgId = req.query.orgId || req.user.org_id || req.user.orgId;
+    
+    if (req.user.role === 'org_admin' && !safeOrgId) {
+      return res.status(400).json({ error: 'Missing Organization ID' });
+    }
+
     const orgFilter = req.user.role === 'org_admin' ? `AND u.org_id = '${safeOrgId}'` : ''
     const today     = new Date().toISOString().split('T')[0]
 
@@ -52,8 +57,8 @@ router.get('/stats', requireAdmin, async (req, res) => {
 
 // ── GET /api/admin/users — users list ─────────────────────────────────────
 router.get('/users', requireAdmin, async (req, res) => {
-  // FIX: Use req.user.org_id instead of orgId
-  const safeOrgId = req.user.org_id || req.user.orgId;
+  // FIX: Look at the URL query first
+  const safeOrgId = req.query.orgId || req.user.org_id || req.user.orgId;
   const orgFilter = req.user.role === 'org_admin' ? `AND u.org_id = $1` : ''
   const params    = req.user.role === 'org_admin' ? [safeOrgId] : []
 
@@ -84,8 +89,8 @@ router.get('/users', requireAdmin, async (req, res) => {
 router.get('/export', requireAdmin, async (req, res) => {
   const { orgId, userId } = req.query
 
-  // FIX: Use req.user.org_id instead of orgId
-  const safeOrgId = req.user.org_id || req.user.orgId;
+  // FIX: Ensure safeOrgId pulls from query correctly
+  const safeOrgId = orgId || req.user.org_id || req.user.orgId;
   
   // Org admins can only export their own org
   const effectiveOrgId = req.user.role === 'org_admin' ? safeOrgId : orgId
