@@ -166,7 +166,7 @@ export function CheckinQuestionnaire({ onComplete, onBack }) {
               cursor: effectiveSelected === null ? 'not-allowed' : 'pointer',
             }}
           >
-            {isLast ? '✅ See My Results' : 'Next Question →'}
+            {isLast ? 'See My Results' : 'Next Question →'}
           </button>
         </div>
       </div>
