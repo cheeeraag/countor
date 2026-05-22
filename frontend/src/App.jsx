@@ -26,11 +26,10 @@ function AppInner() {
       <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--cream)' }}>
   <div style={{ textAlign:'center' }}>
     
-    {/* Replaced the emoji with the logo image */}
     <img 
-      src={brandLogo} 
-      alt="CIDANÉ Logo" 
-      style={{ width: '60px', height: 'auto', marginBottom: 16 }} 
+      src={logoImg} 
+      alt="Countor Logo" 
+      style={{ display: 'block', margin: '0 auto', width: '60px', height: 'auto', marginBottom: 16 }} 
     />
     
     <Spinner green size={28} />
