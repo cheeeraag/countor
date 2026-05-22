@@ -37,9 +37,9 @@ export function TopNav({ currentPage, onNavigate }) {
         />
         
         {/* The 'Countor' text remains next to the logo */}
-        <span style={{ fontFamily: "'Lora', serif", fontSize: '18px', fontWeight: 600, color: 'var(--text)' }}>
-          Countor
-        </span>
+        <span style={{ fontFamily: "'Nunito', sans-serif", fontSize: '19px', fontWeight: 800, letterSpacing: '-0.3px', color: 'var(--text)' }}>
+  Countor
+</span>
       </button>
 
       {/* Hamburger Button (visible on mobile via CSS) */}
