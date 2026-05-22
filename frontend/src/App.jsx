@@ -1,3 +1,4 @@
+import brandLogo from './assets/logo.png'; // Adjust the path to your actual logo file
 import { useState } from 'react'
 import { AppProvider, useApp }          from './context/AppContext'
 import { AuthScreen }                   from './components/AuthScreen'
@@ -23,12 +24,19 @@ function AppInner() {
   if (loading) {
     return (
       <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--cream)' }}>
-        <div style={{ textAlign:'center' }}>
-          <p style={{ fontSize:52, marginBottom:16 }}>🧠</p>
-          <Spinner green size={28} />
-          <p style={{ fontFamily:"'Lora',serif", color:'var(--green)', fontSize:16, marginTop:14 }}>Loading Countor…</p>
-        </div>
-      </div>
+  <div style={{ textAlign:'center' }}>
+    
+    {/* Replaced the emoji with the logo image */}
+    <img 
+      src={brandLogo} 
+      alt="CIDANÉ Logo" 
+      style={{ width: '60px', height: 'auto', marginBottom: 16 }} 
+    />
+    
+    <Spinner green size={28} />
+    <p style={{ fontFamily:"'Lora',serif", color:'var(--green)', fontSize:16, marginTop:14 }}>Loading Countor…</p>
+  </div>
+</div>
     )
   }
 
