@@ -66,7 +66,7 @@ export function AuthScreen({ onPending }) {
 
         {/* Logo */}
         <div style={{ textAlign:'center', marginBottom:28 }}>
-          <img src="./assets/logo.png" alt="Countor Logo" style={{ width:60, height:60, margin:'0 auto 14px', objectFit: 'contain', objectPosition: 'center', boxShadow:'0 8px 24px rgba(27,94,59,.25)' }} />
+          <img src="../assets/logo.png" alt="Countor Logo" style={{ width:60, height:60, margin:'0 auto 14px', objectFit: 'contain', objectPosition: 'center', boxShadow:'0 8px 24px rgba(27,94,59,.25)' }} />
         <div style={{ textAlign:'center', marginBottom:28 }}>
           <div style={{ width:60, height:60, background:'var(--green)', borderRadius:18, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px', fontSize:30, boxShadow:'0 8px 24px rgba(27,94,59,.25)' }}>🧠</div>
           <h1 style={{ fontSize:28, marginBottom:4 }}>Countor</h1>
