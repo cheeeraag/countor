@@ -1,4 +1,4 @@
-import brandLogo from './assets/logo.png'; // Adjust the path to your actual logo file
+import logoImg from './assets/logo.png' // 1. Import your logo image here
 import { useState } from 'react'
 import { AppProvider, useApp }          from './context/AppContext'
 import { AuthScreen }                   from './components/AuthScreen'
