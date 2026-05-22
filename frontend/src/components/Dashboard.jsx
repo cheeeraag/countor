@@ -8,8 +8,11 @@ export function Dashboard({ onStartCheckin }) {
   const { user, history } = useApp()
   const [period, setPeriod] = useState('week')
 
-  const today      = new Date().toISOString().split('T')[0]
-  const todayEntry = history.find(h => h.date === today)
+  // FIX: Use local time (en-CA guarantees the YYYY-MM-DD format)
+  const today      = new Date().toLocaleDateString('en-CA')
+  // FIX: Slice the DB timestamp to compare strictly by the date portion
+  const todayEntry = history.find(h => h.date?.substring(0, 10) === today)
+  
   const streak     = calcStreak(history)
   const hour       = new Date().getHours()
   const greeting   = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -24,8 +27,11 @@ export function Dashboard({ onStartCheckin }) {
     const days = period === 'week' ? 7 : period === 'month' ? 30 : 90
     return Array.from({ length: days }, (_, i) => {
       const d = new Date(); d.setDate(d.getDate() - (days - 1 - i))
-      const ds = d.toISOString().split('T')[0]
-      const e  = history.find(h => h.date === ds)
+      
+      // FIX: Use local time and slice DB timestamp for accurate chart points
+      const ds = d.toLocaleDateString('en-CA')
+      const e  = history.find(h => h.date?.substring(0, 10) === ds)
+      
       return {
         label: d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
         score: e ? (e.score ?? null) : null,
