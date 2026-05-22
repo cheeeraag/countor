@@ -18,7 +18,7 @@ export function AdminPage() {
       </PageShell>
     )
   }
-  return isSuperAdmin ? <SuperAdminDashboard /> : <OrgAdminDashboard orgId={user.orgId || user.orgId} />
+  return isSuperAdmin ? <SuperAdminDashboard /> : <OrgAdminDashboard orgId={user.org_id || user.orgId} />
 }
 
 // ═══════════════ SUPERADMIN ════════════════════════════════════════════════════
