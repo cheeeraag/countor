@@ -81,10 +81,16 @@ function HeatMap({ history }) {
   const weeks = 12; const days = weeks * 7
   const cells = Array.from({ length: days }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() - (days - 1 - i))
-    const ds = d.toISOString().split('T')[0]
-    const e  = history.find(h => h.date === ds)
+    
+    // FIX: Format cleanly to YYYY-MM-DD
+    const ds = d.toLocaleDateString('en-CA') 
+    
+    // FIX: Slice the DB timestamp before comparing
+    const e  = history.find(h => h.date?.substring(0, 10) === ds) 
+    
     return { date:ds, score: e ? (e.score ?? e.wellness) : null }
   })
+  
   const getColor = s => {
     if (s === null) return '#EDE9E3'
     if (s >= 85)   return '#1B5E3B'
@@ -93,6 +99,7 @@ function HeatMap({ history }) {
     if (s >= 33)   return '#C0392B'
     return '#922B21'
   }
+  
   return (
     <div className="card">
       <SectionHeader icon="📅" title="12-Week Activity" subtitle="Daily check-in history" />
