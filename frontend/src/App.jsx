@@ -1,4 +1,4 @@
-import logoImg from './assets/logo.png' // 1. Import your logo image here
+import logoImg from './assets/favicon.ico' // 1. Import your logo image here
 import { useState } from 'react'
 import { AppProvider, useApp }          from './context/AppContext'
 import { AuthScreen }                   from './components/AuthScreen'
