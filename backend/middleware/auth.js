@@ -27,4 +27,21 @@ function optionalToken(req, res, next) {
   next()
 }
 
-module.exports = { verifyToken, optionalToken }
+// Ensures the user is authenticated AND has the superadmin role
+function requireSuperAdmin(req, res, next) {
+  // Call verifyToken manually to ensure the user is populated
+  verifyToken(req, res, () => {
+    if (req.user && req.user.role === 'superadmin') {
+      next() // User is superadmin, proceed to the route
+    } else {
+      res.status(403).json({ error: 'Access denied. Superadmin privileges required.' })
+    }
+  })
+}
+
+// Make sure requireSuperAdmin is included in the export
+module.exports = { 
+  verifyToken, 
+  optionalToken, 
+  requireSuperAdmin 
+}
