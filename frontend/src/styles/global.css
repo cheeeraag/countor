@@ -109,6 +109,10 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .topnav-logo { display: flex; align-items: center; gap: 10px; font-family: 'Lora', serif; font-size: 18px; font-weight: 600; color: var(--text); text-decoration: none; }
 .topnav-logo:hover { text-decoration: none; }
 .topnav-logo-icon { width: 32px; height: 32px; background: var(--green); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 17px; }
+
+/* Hamburger button (hidden on desktop) */
+.mobile-menu-btn { display: none; color: var(--text); }
+
 .topnav-links { display: flex; align-items: center; gap: 4px; }
 .topnav-link { padding: 6px 12px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; color: var(--muted); transition: all .2s; background: none; cursor: pointer; border: none; font-family: 'Nunito', sans-serif; }
 .topnav-link:hover { background: var(--cream2); color: var(--text); }
@@ -121,12 +125,48 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 ::-webkit-scrollbar-thumb:hover { background: var(--muted2); }
 
 /* ─── Responsive ─────────────────────────────────────────── */
+
+/* 1. New Mobile Navbar Rules (Triggers at 768px for iPads/Phones) */
+@media (max-width: 768px) {
+  .mobile-menu-btn { display: block; }
+  
+  .topnav-links {
+    display: none; /* Hidden by default on mobile */
+    flex-direction: column;
+    align-items: flex-start;
+    position: absolute;
+    top: var(--nav-h); /* Opens right beneath the navbar */
+    left: 0;
+    width: 100%;
+    background: var(--white);
+    padding: 20px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid var(--border);
+    z-index: 1000;
+    gap: 16px;
+  }
+  
+  /* Shown when the React state is true */
+  .topnav-links.open { display: flex; }
+  
+  /* Hide the vertical divider since links are now stacked */
+  .nav-divider { display: none !important; }
+  
+  /* Make mobile links bigger and easier to tap */
+  .topnav-link { width: 100%; text-align: left; padding: 12px; font-size: 15px; }
+  
+  /* Align the username and badge with the links */
+  .nav-username, .nav-logout, .nav-badge { margin-left: 12px; }
+}
+
+/* 2. Smaller Phones */
 @media (max-width: 640px) {
   .grid-3 { grid-template-columns: repeat(2,1fr); }
-  .topnav { padding: 0 12px; }
-  .topnav-link { padding: 6px 8px; font-size: 12px; }
+  .topnav { padding: 0 16px; } /* Slightly looser padding so logo/menu button aren't touching edges */
   .page-pad { padding: 16px; }
 }
+
+/* 3. Tiny Phones */
 @media (max-width: 400px) {
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
 }
