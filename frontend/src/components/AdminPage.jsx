@@ -201,14 +201,18 @@ function OrgsTab({ pending, approved, onRefresh }) {
           <SectionHeader icon="⏳" title="Pending Requests" subtitle={`${pending.length} awaiting approval`} />
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
             {pending.map(o => (
-              <div key={o.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', background:'var(--amber-pale)', borderRadius:10 }}>
-                <div style={{ width:42, height:42, borderRadius:10, background:'#F5C580', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>🏢</div>
-                <div style={{ flex:1 }}>
-                  <p style={{ fontSize:14, fontWeight:700, color:'var(--text)' }}>{o.name}</p>
-                  <p style={{ fontSize:12, color:'var(--muted)' }}>Requested by {o.admin_name} · {o.admin_email}</p>
+              <div key={o.id} className="admin-list-row" style={{ padding:'12px 14px', background:'var(--amber-pale)', borderRadius:10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 200 }}>
+                  <div style={{ width:42, height:42, borderRadius:10, background:'#F5C580', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>🏢</div>
+                  <div style={{ flex:1 }}>
+                    <p style={{ fontSize:14, fontWeight:700, color:'var(--text)' }}>{o.name}</p>
+                    <p style={{ fontSize:12, color:'var(--muted)' }}>Requested by {o.admin_name} · {o.admin_email}</p>
+                  </div>
                 </div>
-                <button className="btn-primary" onClick={() => handle(o.id,'approve')} style={{ padding:'7px 14px', fontSize:12 }}>✅ Approve</button>
-                <button onClick={() => handle(o.id,'reject')} style={{ padding:'7px 14px', fontSize:12, background:'var(--red)', color:'#fff', border:'none', borderRadius:8, cursor:'pointer', fontWeight:700 }}>✗ Reject</button>
+                <div className="admin-list-actions">
+                  <button className="btn-primary" onClick={() => handle(o.id,'approve')} style={{ padding:'7px 14px', fontSize:12 }}>✅ Approve</button>
+                  <button onClick={() => handle(o.id,'reject')} style={{ padding:'7px 14px', fontSize:12, background:'var(--red)', color:'#fff', border:'none', borderRadius:8, cursor:'pointer', fontWeight:700 }}>✗ Reject</button>
+                </div>
               </div>
             ))}
           </div>
@@ -220,17 +224,21 @@ function OrgsTab({ pending, approved, onRefresh }) {
           ? <p style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'20px 0' }}>No approved organisations yet.</p>
           : <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {approved.map((o,i) => (
-                <div key={o.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 0', borderTop: i===0?'none':'1px solid var(--border)' }}>
-                  <div style={{ width:42, height:42, borderRadius:10, background:'var(--green-pale)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>🏢</div>
-                  <div style={{ flex:1 }}>
-                    <p style={{ fontSize:14, fontWeight:700, color:'var(--text)' }}>{o.name}</p>
-                    <p style={{ fontSize:12, color:'var(--muted)' }}>Admin: {o.admin_email}</p>
+                <div key={o.id} className="admin-list-row" style={{ padding:'12px 0', borderTop: i===0?'none':'1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 200 }}>
+                    <div style={{ width:42, height:42, borderRadius:10, background:'var(--green-pale)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>🏢</div>
+                    <div style={{ flex:1 }}>
+                      <p style={{ fontSize:14, fontWeight:700, color:'var(--text)' }}>{o.name}</p>
+                      <p style={{ fontSize:12, color:'var(--muted)' }}>Admin: {o.admin_email}</p>
+                    </div>
                   </div>
-                  <div style={{ textAlign:'right' }}>
-                    <p style={{ fontSize:13, fontWeight:700, color:'var(--green)' }}>{o.member_count} members</p>
-                    <p style={{ fontSize:11, color:'var(--muted)' }}>{o.checkin_count} check-ins</p>
+                  <div className="admin-list-actions">
+                    <div style={{ textAlign:'right' }}>
+                      <p style={{ fontSize:13, fontWeight:700, color:'var(--green)' }}>{o.member_count} members</p>
+                      <p style={{ fontSize:11, color:'var(--muted)' }}>{o.checkin_count} check-ins</p>
+                    </div>
+                    <button className="btn-ghost" onClick={() => adminAPI.exportCSV(o.id)} style={{ fontSize:12 }}>CSV ↓</button>
                   </div>
-                  <button className="btn-ghost" onClick={() => adminAPI.exportCSV(o.id)} style={{ fontSize:12 }}>CSV ↓</button>
                 </div>
               ))}
             </div>
@@ -253,20 +261,24 @@ function UsersTab({ users, showOrg }) {
               {filtered.map((u,i) => {
                 const t = u.last_tier ? TIERS[u.last_tier] : null
                 return (
-                  <div key={u.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderTop: i===0?'none':'1px solid var(--border)' }}>
-                    <Avatar initials={u.name?.slice(0,2).toUpperCase()} size={40} />
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <p style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>{u.name}</p>
-                      <p style={{ fontSize:11, color:'var(--muted)' }}>{u.email}</p>
-                      {showOrg && u.org_name && <span className="badge badge-green" style={{ fontSize:10, marginTop:3 }}>🏢 {u.org_name}</span>}
+                  <div key={u.id} className="admin-list-row" style={{ padding:'10px 0', borderTop: i===0?'none':'1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 200 }}>
+                      <Avatar initials={u.name?.slice(0,2).toUpperCase()} size={40} />
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <p style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>{u.name}</p>
+                        <p style={{ fontSize:11, color:'var(--muted)' }}>{u.email}</p>
+                        {showOrg && u.org_name && <span className="badge badge-green" style={{ fontSize:10, marginTop:3 }}>🏢 {u.org_name}</span>}
+                      </div>
                     </div>
-                    <div style={{ textAlign:'right', flexShrink:0 }}>
-                      {u.avg_score && <p style={{ fontSize:13, fontWeight:700, color:'var(--green)' }}>{u.avg_score}/100 avg</p>}
-                      <p style={{ fontSize:11, color:'var(--muted)' }}>{u.checkin_count} check-ins</p>
-                      {u.last_checkin && <p style={{ fontSize:11, color:'var(--muted)' }}>{String(u.last_checkin).slice(0,10)}</p>}
+                    <div className="admin-list-actions">
+                      <div style={{ textAlign:'right' }}>
+                        {u.avg_score && <p style={{ fontSize:13, fontWeight:700, color:'var(--green)' }}>{u.avg_score}/100 avg</p>}
+                        <p style={{ fontSize:11, color:'var(--muted)' }}>{u.checkin_count} check-ins</p>
+                        {u.last_checkin && <p style={{ fontSize:11, color:'var(--muted)' }}>{String(u.last_checkin).slice(0,10)}</p>}
+                      </div>
+                      {t && <span className="badge" style={{ background:t.bg, color:t.color, fontSize:10 }}>{t.label}</span>}
+                      <button className="btn-ghost" onClick={() => adminAPI.exportCSV(null, u.id)} style={{ fontSize:11 }}>CSV ↓</button>
                     </div>
-                    {t && <span className="badge" style={{ background:t.bg, color:t.color, fontSize:10, flexShrink:0 }}>{t.label}</span>}
-                    <button className="btn-ghost" onClick={() => adminAPI.exportCSV(null, u.id)} style={{ fontSize:11, flexShrink:0 }}>CSV ↓</button>
                   </div>
                 )
               })}
