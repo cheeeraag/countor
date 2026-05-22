@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
+import logoImg from '../assets/logo.png' // 1. Import your logo image here
 
 export function TopNav({ currentPage, onNavigate }) {
   const { user, logout, isAdmin, isSuperAdmin } = useApp()
@@ -14,7 +15,6 @@ export function TopNav({ currentPage, onNavigate }) {
     { id: 'admin',      label: isSuperAdmin ? '🔐 Super Admin' : '⚙️ Org Admin', show: isAdmin },
   ]
 
-  // Helper to navigate AND close the menu on mobile automatically
   const handleNavigate = (id) => {
     onNavigate(id)
     setIsMenuOpen(false) 
@@ -22,13 +22,27 @@ export function TopNav({ currentPage, onNavigate }) {
 
   return (
     <nav className="topnav">
-      {/* Logo */}
-      <button onClick={() => handleNavigate('dashboard')} className="topnav-logo" style={{ background:'none', border:'none', cursor:'pointer' }}>
-        <div className="topnav-logo-icon">🧠</div>
-        <span>Countor</span>
+      {/* Logo Section */}
+      <button onClick={() => handleNavigate('dashboard')} className="topnav-logo" style={{ background:'none', border:'none', cursor:'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        
+        {/* 2. REPLACED EMOJI DIV WITH IMG TAG */}
+        <img 
+          src={logoImg} 
+          alt="Countor Logo" 
+          style={{ 
+            height: '32px', // Matches the previous icon height
+            width: 'auto',  // Maintains aspect ratio
+            display: 'block'
+          }} 
+        />
+        
+        {/* The 'Countor' text remains next to the logo */}
+        <span style={{ fontFamily: "'Lora', serif", fontSize: '18px', fontWeight: 600, color: 'var(--text)' }}>
+          Countor
+        </span>
       </button>
 
-      {/* Hamburger Button (Only visible on mobile via CSS) */}
+      {/* Hamburger Button (visible on mobile via CSS) */}
       <button 
         className="mobile-menu-btn" 
         onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -37,7 +51,7 @@ export function TopNav({ currentPage, onNavigate }) {
         {isMenuOpen ? '✖' : '☰'}
       </button>
 
-      {/* Links Container - Adds 'open' class when active on mobile */}
+      {/* Links Container */}
       <div className={`topnav-links ${isMenuOpen ? 'open' : ''}`}>
         {LINKS.filter(l => l.show).map(link => (
           <button key={link.id} onClick={() => handleNavigate(link.id)}
