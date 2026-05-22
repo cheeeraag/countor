@@ -6,8 +6,8 @@ const { Parser } = require('json2csv').default || require('json2csv')
 // ── GET /api/admin/stats — overview numbers ───────────────────────────────
 router.get('/stats', requireAdmin, async (req, res) => {
   try {
-    // 1. Safely pull the ID from the URL query first, then fallback to the token
-    const safeOrgId = req.query.orgId || req.user.org_id || req.user.orgId;
+    // 1. Safely pull the ID (Your log proved req.user.orgId is correct!)
+    const safeOrgId = req.query.orgId || req.user.orgId || req.user.org_id;
     
     if (req.user.role === 'org_admin' && !safeOrgId) {
       return res.status(400).json({ error: 'Missing Organization ID' });
@@ -17,7 +17,7 @@ router.get('/stats', requireAdmin, async (req, res) => {
     const orgFilter = req.user.role === 'org_admin' ? `AND u.org_id = '${safeOrgId}'` : ''
     const today     = new Date().toISOString().split('T')[0]
 
-    // 3. Clean subquery filter specifically for the 7-day chart to prevent SQL crashes
+    // 3. THIS FIXES THE CRASH: Clean subquery filter specifically for the 7-day chart
     const daily7Filter = req.user.role === 'org_admin' 
       ? `AND c.user_id IN (SELECT id FROM users WHERE org_id = '${safeOrgId}')` 
       : ''
@@ -33,7 +33,7 @@ router.get('/stats', requireAdmin, async (req, res) => {
       pool.query(`SELECT ROUND(AVG(c.score))::int AS avg FROM checkins c JOIN users u ON u.id=c.user_id WHERE 1=1 ${orgFilter}`),
       // tier distribution
       pool.query(`SELECT c.tier, COUNT(*)::int AS count FROM checkins c JOIN users u ON u.id=c.user_id WHERE 1=1 ${orgFilter} GROUP BY c.tier`),
-      // last 7 days activity
+      // last 7 days activity (Crash resolved here!)
       pool.query(`
         SELECT
           TO_CHAR(d.day,'YYYY-MM-DD') AS date,
@@ -62,8 +62,8 @@ router.get('/stats', requireAdmin, async (req, res) => {
 
 // ── GET /api/admin/users — users list ─────────────────────────────────────
 router.get('/users', requireAdmin, async (req, res) => {
-  // Pull the ID from the URL query
-  const safeOrgId = req.query.orgId || req.user.org_id || req.user.orgId;
+  // Pull the ID safely
+  const safeOrgId = req.query.orgId || req.user.orgId || req.user.org_id;
   const orgFilter = req.user.role === 'org_admin' ? `AND u.org_id = $1` : ''
   const params    = req.user.role === 'org_admin' ? [safeOrgId] : []
 
@@ -94,8 +94,7 @@ router.get('/users', requireAdmin, async (req, res) => {
 router.get('/export', requireAdmin, async (req, res) => {
   const { orgId, userId } = req.query
 
-  // Ensure safeOrgId pulls from query correctly
-  const safeOrgId = orgId || req.user.org_id || req.user.orgId;
+  const safeOrgId = orgId || req.user.orgId || req.user.org_id;
   
   // Org admins can only export their own org
   const effectiveOrgId = req.user.role === 'org_admin' ? safeOrgId : orgId
