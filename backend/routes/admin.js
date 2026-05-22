@@ -57,6 +57,9 @@ router.get('/stats', requireAdmin, async (req, res) => {
 
 // ── GET /api/admin/users — users list ─────────────────────────────────────
 router.get('/users', requireAdmin, async (req, res) => {
+  console.log("=== ADMIN DEBUG ===");
+  console.log("From Token (req.user):", req.user);
+  console.log("From URL (req.query):", req.query);
   // FIX: Look at the URL query first
   const safeOrgId = req.query.orgId || req.user.org_id || req.user.orgId;
   const orgFilter = req.user.role === 'org_admin' ? `AND u.org_id = $1` : ''
