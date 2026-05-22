@@ -89,7 +89,7 @@ export const QUESTIONS = [
 
 // Options — same scale as PHQ-9 / GAD-7
 export const OPTIONS = [
-  { value: 0, label: 'Not at all',              emoji: '😊' },
+  { value: 0, label: 'Not at all',             emoji: '😊' },
   { value: 1, label: 'Several days',             emoji: '😐' },
   { value: 2, label: 'More than half the days',  emoji: '😟' },
   { value: 3, label: 'Nearly every day',         emoji: '😔' },
@@ -243,10 +243,10 @@ export const THERAPISTS = [
   { id: 1, name: 'Dr. Priya Sharma',  specialty: 'Anxiety & Depression',             qualification: 'PhD Clinical Psychology, RCI Licensed', location: 'Delhi (Online)',              rating: 4.9, reviews: 142, sessionFee: 1200, languages: ['Hindi','English'],            tags: ['CBT','Mindfulness','MBSR'],              avatar: 'PS' },
   { id: 2, name: 'Arjun Mehra',       specialty: 'Stress & Burnout',                 qualification: 'M.Phil Psychology, RCI Licensed',       location: 'Mumbai (Online)',             rating: 4.8, reviews: 98,  sessionFee: 900,  languages: ['English','Hindi','Marathi'],   tags: ['ACT','CBT','Career Stress'],             avatar: 'AM' },
   { id: 3, name: 'Dr. Kavitha Nair',  specialty: 'Trauma & PTSD',                    qualification: 'PhD Psychology, RCI Licensed',          location: 'Bangalore (Online)',          rating: 5.0, reviews: 76,  sessionFee: 1500, languages: ['English','Kannada','Tamil'],   tags: ['EMDR','Trauma','PTSD'],                  avatar: 'KN' },
-  { id: 4, name: 'Sneha Iyer',        specialty: 'Student & Academic Stress',        qualification: 'MSc Counselling Psychology',             location: 'Chennai (Online)',            rating: 4.7, reviews: 203, sessionFee: 700,  languages: ['English','Tamil'],            tags: ['Student Wellness','Exam Stress','CBT'],  avatar: 'SI' },
+  { id: 4, name: 'Sneha Iyer',        specialty: 'Student & Academic Stress',        qualification: 'MSc Counselling Psychology',            location: 'Chennai (Online)',            rating: 4.7, reviews: 203, sessionFee: 700,  languages: ['English','Tamil'],            tags: ['Student Wellness','Exam Stress','CBT'],  avatar: 'SI' },
   { id: 5, name: 'Rahul Bose',        specialty: 'Depression & Mood Disorders',      qualification: 'M.Phil Clinical Psychology, RCI',       location: 'Kolkata (Online)',            rating: 4.8, reviews: 115, sessionFee: 1000, languages: ['English','Bengali','Hindi'],   tags: ['Depression','DBT','Mood Disorders'],     avatar: 'RB' },
   { id: 6, name: 'Anika Kapoor',      specialty: 'Relationships & Life Transitions', qualification: 'MSc Psychology, Certified Coach',       location: 'Pune (Online)',              rating: 4.6, reviews: 89,  sessionFee: 800,  languages: ['Hindi','English','Marathi'],   tags: ['Relationships','Coaching'],              avatar: 'AK' },
-  { id: 7, name: 'Dr. Sanjay Kumar',  specialty: 'Addiction & Recovery',             qualification: 'MD Psychiatry',                         location: 'Hyderabad (Online+In-person)', rating: 4.9, reviews: 61,  sessionFee: 2000, languages: ['English','Telugu','Hindi'],   tags: ['Addiction','Psychiatry'],                avatar: 'SK' },
+  { id: 7, name: 'Dr. Sanjay Kumar',  specialty: 'Addiction & Recovery',             qualification: 'MD Psychiatry',                        location: 'Hyderabad (Online+In-person)', rating: 4.9, reviews: 61,  sessionFee: 2000, languages: ['English','Telugu','Hindi'],   tags: ['Addiction','Psychiatry'],                avatar: 'SK' },
   { id: 8, name: 'Meera Pillai',      specialty: 'Mindfulness & Wellness',           qualification: 'MSc Clinical Psychology',               location: 'Kerala (Online)',             rating: 4.7, reviews: 177, sessionFee: 650,  languages: ['Malayalam','English'],        tags: ['Mindfulness','Wellness','MBSR'],         avatar: 'MP' },
 ]
 
@@ -258,21 +258,55 @@ export const BADGES = [
   { id: 'ten_checkins',   label: 'Dedicated',        emoji: '⭐', desc: '10 total check-ins completed',           condition: (h) => h.length >= 10 },
   { id: 'fifty_checkins', label: 'Committed',        emoji: '🏆', desc: '50 total check-ins completed',           condition: (h) => h.length >= 50 },
   { id: 'improving',      label: 'On the Rise',      emoji: '📈', desc: 'Score improved 10+ points over 7 days', condition: (h) => scoreImproved(h, 7, 10) },
-  { id: 'healthy_week',   label: 'Thriving Week',    emoji: '🌟', desc: 'Scored 70+ every day for 7 days',       condition: (h) => allAbove(h, 7, 70) },
+  { id: 'healthy_week',   label: 'Thriving Week',    emoji: '🌟', desc: 'Scored 70+ every day for 7 days',        condition: (h) => allAbove(h, 7, 70) },
   { id: 'consistent',     label: 'Consistent',       emoji: '🎯', desc: '14 days without missing a check-in',    condition: (h) => calcStreak(h) >= 14 },
 ]
 
 export function calcStreak(history) {
-  if (!history.length) return 0
-  const sorted = [...history].sort((a, b) => new Date(b.date) - new Date(a.date))
-  let streak = 0
-  for (let i = 0; i < sorted.length; i++) {
-    const expected = new Date()
-    expected.setDate(expected.getDate() - i)
-    if (sorted[i].date === expected.toISOString().split('T')[0]) streak++
-    else break
+  if (!history || history.length === 0) return 0;
+
+  // 1. Get today and yesterday formatted as local YYYY-MM-DD
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const todayStr = today.toLocaleDateString('en-CA');
+  const yesterdayStr = yesterday.toLocaleDateString('en-CA');
+
+  // 2. Extract and format all history dates into a fast-lookup Set
+  // This slices the DB timestamp to YYYY-MM-DD just like we did in the UI
+  const historyDates = new Set(
+    history.map(entry => entry.date?.substring(0, 10))
+  );
+
+  let streak = 0;
+  let currentDate = new Date(); // Start tracking from today
+
+  // 3. Check if the streak is already dead 
+  // (No check-in today AND no check-in yesterday)
+  if (!historyDates.has(todayStr) && !historyDates.has(yesterdayStr)) {
+    return 0; 
   }
-  return streak
+
+  // 4. If they haven't checked in today yet, but DID yesterday, 
+  // start counting backwards from yesterday so they don't lose their streak!
+  if (!historyDates.has(todayStr) && historyDates.has(yesterdayStr)) {
+    currentDate.setDate(currentDate.getDate() - 1);
+  }
+
+  // 5. Count backwards day by day until a gap is found
+  while (true) {
+    const checkDateStr = currentDate.toLocaleDateString('en-CA');
+    
+    if (historyDates.has(checkDateStr)) {
+      streak++;
+      currentDate.setDate(currentDate.getDate() - 1); // Move back exactly one day
+    } else {
+      break; // Gap found, streak ends
+    }
+  }
+
+  return streak;
 }
 
 function scoreImproved(h, days, amount) {
