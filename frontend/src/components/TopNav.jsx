@@ -7,12 +7,12 @@ export function TopNav({ currentPage, onNavigate }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const LINKS = [
-    { id: 'dashboard',  label: '📊 Dashboard',   show: true },
-    { id: 'checkin',    label: '📋 Check-in',     show: true },
-    { id: 'community',  label: '🌿 Community',    show: true },
-    { id: 'therapists', label: '👩‍⚕️ Therapists',  show: true },
-    { id: 'streaks',    label: '🔥 Streaks',      show: true },
-    { id: 'admin',      label: isSuperAdmin ? '🔐 Super Admin' : '⚙️ Org Admin', show: isAdmin },
+    { id: 'dashboard',  label: 'Dashboard',   show: true },
+    { id: 'checkin',    label: 'Check-in',     show: true },
+    { id: 'community',  label: 'Community',    show: true },
+    { id: 'therapists', label: 'Therapists',  show: true },
+    { id: 'streaks',    label: 'Streaks',      show: true },
+    { id: 'admin',      label: isSuperAdmin ? 'Super Admin' : 'Org Admin', show: isAdmin },
   ]
 
   const handleNavigate = (id) => {
@@ -65,7 +65,7 @@ export function TopNav({ currentPage, onNavigate }) {
         {/* Role badge */}
         {isAdmin && (
           <span className="nav-badge" style={{ fontSize:10, fontWeight:700, padding:'3px 8px', borderRadius:20, background: isSuperAdmin ? '#FADBD8' : 'var(--green-pale)', color: isSuperAdmin ? '#922B21' : 'var(--green)', marginRight:4 }}>
-            {isSuperAdmin ? '🔐 SUPERADMIN' : '🏢 ORG ADMIN'}
+            {isSuperAdmin ? 'SUPERADMIN' : 'ORG ADMIN'}
           </span>
         )}
 
