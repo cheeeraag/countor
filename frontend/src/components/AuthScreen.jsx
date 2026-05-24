@@ -13,6 +13,7 @@ export function AuthScreen({ onPending }) {
   const [err,        setErr]        = useState('')
   const [success,    setSuccess]    = useState('')
   const [loading,    setLoading]    = useState(false)
+  const [agreed,     setAgreed]     = useState(false) // Added state for Terms checkbox
   const [approvedOrgs, setApprovedOrgs] = useState([])
 
   // Fetch approved orgs for the individual signup dropdown
@@ -27,6 +28,8 @@ export function AuthScreen({ onPending }) {
     if (!form.email || !form.password) { setErr('Please fill in all fields.'); return }
     if (mode !== 'login' && !form.name) { setErr('Please enter your name.'); return }
     if (mode !== 'login' && form.password.length < 6) { setErr('Password must be at least 6 characters.'); return }
+    if (mode !== 'login' && !agreed) { setErr('You must agree to the Terms of Service and Privacy Policy.'); return } // Backup validation
+    
     setLoading(true)
 
     try {
@@ -60,6 +63,9 @@ export function AuthScreen({ onPending }) {
     setLoading(false)
   }
 
+  // Calculate if the submit button should be disabled
+  const isSubmitDisabled = loading || (mode !== 'login' && !agreed);
+
   return (
     <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--cream)', padding:20 }}>
       <div style={{ width:'100%', maxWidth:460 }}>
@@ -67,10 +73,10 @@ export function AuthScreen({ onPending }) {
         {/* Logo */}
         <div style={{ textAlign:'center', marginBottom:28 }}>
            <img 
-      src={logoImg} 
-      alt="Countor Logo" 
-      style={{ display: 'block', margin: '0 auto', width: '60px', height: 'auto', marginBottom: 16 }} 
-    />
+              src={logoImg} 
+              alt="Countor Logo" 
+              style={{ display: 'block', margin: '0 auto', width: '60px', height: 'auto', marginBottom: 16 }} 
+            />
           <h1 style={{ fontSize:28, marginBottom:4 }}>Countor</h1>
           <p style={{ color:'var(--muted)', fontSize:13 }}>Mental wellness check-in &amp; community</p>
         </div>
@@ -79,7 +85,16 @@ export function AuthScreen({ onPending }) {
           {/* Tabs */}
           <div style={{ display:'flex', background:'#F0EDE8', borderRadius:10, padding:4, marginBottom:22, gap:3 }}>
             {[['login','Log In'],['user','Individual'],['org','Organisation'],['super','Superadmin']].map(([m,l]) => (
-              <button key={m} onClick={() => { setMode(m); setErr(''); setSuccess('') }} style={{ flex:1, padding:'7px 4px', borderRadius:8, border:'none', fontSize:11, fontWeight:700, transition:'all .2s', background: mode===m ? 'var(--white)' : 'transparent', color: mode===m ? 'var(--green)' : 'var(--muted)', boxShadow: mode===m ? 'var(--shadow-sm)' : 'none', cursor:'pointer' }}>
+              <button 
+                key={m} 
+                onClick={() => { 
+                  setMode(m); 
+                  setErr(''); 
+                  setSuccess('');
+                  setAgreed(false); // Reset checkbox when switching tabs
+                }} 
+                style={{ flex:1, padding:'7px 4px', borderRadius:8, border:'none', fontSize:11, fontWeight:700, transition:'all .2s', background: mode===m ? 'var(--white)' : 'transparent', color: mode===m ? 'var(--green)' : 'var(--muted)', boxShadow: mode===m ? 'var(--shadow-sm)' : 'none', cursor:'pointer' }}
+              >
                 {l}
               </button>
             ))}
@@ -115,11 +130,27 @@ export function AuthScreen({ onPending }) {
             </div>
           )}
 
+          {/* Legal Checkbox (Only shows during signup, hides on success) */}
+          {mode !== 'login' && !success && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 16 }}>
+              <input 
+                type="checkbox" 
+                id="terms" 
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                style={{ width: 'auto', marginTop: 4, cursor: 'pointer' }}
+              />
+              <label htmlFor="terms" style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.4 }}>
+                I agree to Countor's <a href="/terms" target="_blank" rel="noreferrer">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
+              </label>
+            </div>
+          )}
+
           {err     && <div style={{ background:'#FDEDEC', border:'1px solid #F1A9A0', borderRadius:8, padding:'10px 14px', marginBottom:14 }}><p style={{ color:'var(--red)', fontSize:13 }}>⚠️ {err}</p></div>}
           {success && <div style={{ background:'var(--green-pale)', border:'1px solid var(--green-pale2)', borderRadius:8, padding:'10px 14px', marginBottom:14 }}><p style={{ color:'var(--green)', fontSize:13 }}>{success}</p></div>}
 
           {!success && (
-            <button className="btn-primary" onClick={submit} disabled={loading} style={{ width:'100%', padding:'13px', fontSize:15, justifyContent:'center' }}>
+            <button className="btn-primary" onClick={submit} disabled={isSubmitDisabled} style={{ width:'100%', padding:'13px', fontSize:15, justifyContent:'center' }}>
               {loading ? <Spinner /> : mode==='login' ? 'Log In →' : mode==='org' ? 'Request Organisation Access →' : 'Create Account →'}
             </button>
           )}
