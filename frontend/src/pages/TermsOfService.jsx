@@ -1,5 +1,5 @@
 import React from 'react';
-import { PageShell } from './UI'; // Adjust import path based on your folder structure
+import { PageShell } from '../components/UI'; // Adjust import path based on your folder structure
 
 export function TermsOfService() {
   return (
