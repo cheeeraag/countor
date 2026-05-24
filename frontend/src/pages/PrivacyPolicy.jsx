@@ -1,5 +1,5 @@
 import React from 'react';
-import { PageShell } from './UI';
+import { PageShell } from '.components/UI.jsx';
 
 export function PrivacyPolicy() {
   return (
