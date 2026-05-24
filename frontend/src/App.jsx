@@ -11,9 +11,6 @@ import { CommunityPage }                from './components/CommunityPage'
 import { TherapistDirectory }           from './components/TherapistDirectory'
 import { StreaksPage }                  from './components/StreaksPage'
 import { AdminPage }                    from './components/AdminPage'
-import { TermsOfService }               from './pages/TermsOfService' 
-import { PrivacyPolicy }                from './pages/PrivacyPolicy'  
-import { Footer }                       from './pages/Footer' 
 import { Spinner }                      from './components/UI'
 
 function AppInner() {
@@ -23,30 +20,22 @@ function AppInner() {
   const [lastResult, setLastResult] = useState(null)
   const [pendingUser,setPendingUser] = useState(null)
 
-  // ── 1. Intercept Legal URLs immediately ────────────────────────────────────────
-  // This allows the target="_blank" links from the Auth and Footer to work directly
-  const currentPath = window.location.pathname;
-  if (currentPath === '/terms') {
-    return <TermsOfService />;
-  }
-  if (currentPath === '/privacy') {
-    return <PrivacyPolicy />;
-  }
-
   // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--cream)' }}>
-        <div style={{ textAlign:'center' }}>
-          <img 
-            src={logoImg} 
-            alt="Countor Logo" 
-            style={{ display: 'block', margin: '0 auto', width: '60px', height: 'auto', marginBottom: 16 }} 
-          />
-          <Spinner green size={28} />
-          <p style={{ fontFamily:"'Lora',serif", color:'var(--green)', fontSize:16, marginTop:14 }}>Loading Countor…</p>
-        </div>
-      </div>
+  <div style={{ textAlign:'center' }}>
+    
+    <img 
+      src={logoImg} 
+      alt="Countor Logo" 
+      style={{ display: 'block', margin: '0 auto', width: '60px', height: 'auto', marginBottom: 16 }} 
+    />
+    
+    <Spinner green size={28} />
+    <p style={{ fontFamily:"'Lora',serif", color:'var(--green)', fontSize:16, marginTop:14 }}>Loading Countor…</p>
+  </div>
+</div>
     )
   }
 
@@ -131,13 +120,9 @@ function AppInner() {
   }
 
   return (
-    <div style={{ minHeight:'100vh', background:'var(--cream)', display: 'flex', flexDirection: 'column' }}>
-      
-      {/* Top Navigation */}
+    <div style={{ minHeight:'100vh', background:'var(--cream)' }}>
       <TopNav currentPage={page} onNavigate={navigate} />
-      
-      {/* Main Page Content (flex: 1 keeps footer at the bottom) */}
-      <main style={{ maxWidth:760, margin:'0 auto', width: '100%', flex: 1 }}>
+      <main style={{ maxWidth:760, margin:'0 auto' }}>
         {page === 'dashboard'  && <Dashboard onStartCheckin={startCheckin} />}
         {page === 'community'  && <CommunityPage />}
         {page === 'therapists' && <TherapistDirectory />}
@@ -151,10 +136,6 @@ function AppInner() {
           />
         )}
       </main>
-
-      {/* Global Footer */}
-      <Footer />
-      
     </div>
   )
 }
