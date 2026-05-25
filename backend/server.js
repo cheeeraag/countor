@@ -8,6 +8,7 @@ const orgRoutes       = require('./routes/orgs')
 const checkinRoutes   = require('./routes/checkins')
 const communityRoutes = require('./routes/community')
 const adminRoutes     = require('./routes/admin')
+const referralRoutes  = require('./routes/referrals')   // ← NEW
 
 const app  = express()
 const PORT = process.env.PORT || 3001
@@ -34,6 +35,7 @@ app.use('/api/checkins', checkinRoutes)
 app.use('/api/posts',    communityRoutes)   // posts + comments nested here
 app.use('/api/comments', communityRoutes)   // comment upvote / delete
 app.use('/api/admin',    adminRoutes)
+app.use('/api/referral', referralRoutes)    // ← NEW
 
 // ── Health check ──────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }))
