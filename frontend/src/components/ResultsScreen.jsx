@@ -1,5 +1,6 @@
-import { TIERS, RECOMMENDATIONS } from '../data/recommendations'
+import { TIERS, RECOMMENDATIONS, COMPANIES } from '../data/recommendations'
 import { ScoreCircle, PageShell } from './UI'
+import { openReferral } from '../utils/http'
 
 export function ResultsScreen({ result, onDashboard, onRetake }) {
   const tier = TIERS[result.tier]    || TIERS.improvement
@@ -77,7 +78,7 @@ export function ResultsScreen({ result, onDashboard, onRetake }) {
         </div>
       </div>
 
-      {/* Companies */}
+      {/* Companies / Referrals */}
       <div className="card fade-in" style={{ marginBottom:16 }}>
         <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
           <div style={{ width:40, height:40, background:'var(--amber-pale)', borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>📱</div>
@@ -87,13 +88,27 @@ export function ResultsScreen({ result, onDashboard, onRetake }) {
           </div>
         </div>
         <div className="grid-2">
-          {rec.companies.map((c, i) => (
-            <div key={i} style={{ padding:'12px 14px', background:'var(--cream)', borderRadius:10, border:'1px solid var(--border)' }}>
-              <p style={{ fontWeight:700, fontSize:14, color:'var(--text)', marginBottom:2 }}>{c.name}</p>
-              <p style={{ fontSize:11, color:'var(--muted)' }}>{c.tag}</p>
-              <span className="badge badge-gray" style={{ marginTop:6, fontSize:10 }}>{c.type}</span>
-            </div>
-          ))}
+          {rec.companies.map((companyId, i) => {
+            const c = COMPANIES[companyId]
+            if (!c) return null // Safety check in case of a missing ID
+            
+            return (
+              <div key={i} style={{ padding:'16px 14px', background:'var(--cream)', borderRadius:10, border:'1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontWeight:700, fontSize:15, color:'var(--text)', marginBottom:2 }}>{c.name}</p>
+                  <p style={{ fontSize:10, color:'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>{c.tag}</p>
+                  <p style={{ fontSize:12, color:'var(--text2)', lineHeight: 1.5, marginBottom: 16 }}>{c.description}</p>
+                </div>
+                <button 
+                  className="btn-primary" 
+                  style={{ width: '100%', justifyContent: 'center', padding: '10px', fontSize: 13 }}
+                  onClick={() => openReferral(c, result.tier, 'results')}
+                >
+                  {c.ctaLabel} →
+                </button>
+              </div>
+            )
+          })}
         </div>
       </div>
 
