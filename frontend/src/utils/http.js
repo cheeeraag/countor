@@ -99,18 +99,30 @@ export const referralAPI = {
 
 // ── Tracked outbound link helper ──────────────────────────────────────────────
 // Use this everywhere instead of a plain <a href>.
-// Logs the click then opens the URL in a new tab.
+// Logs the click server-side, pushes to Google Analytics, then opens the URL.
 export async function openReferral(company, tier, source = 'results') {
   const destUrl = company.affiliateUrl || company.url
   if (!destUrl || destUrl === '#') return
 
+  // 1. Push custom event to Google Analytics (Client-side tracking)
+  if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+    window.gtag('event', 'referral_click', {
+      event_category: 'outbound_referral',
+      company_id: company.id,
+      company_name: company.name,
+      user_tier: tier,
+      source_location: source
+    })
+  }
+
+  // 2. Log to your database and open the link
   try {
     const { url } = await referralAPI.click(
       company.id, company.name, tier, source, destUrl
     )
     window.open(url, '_blank', 'noopener,noreferrer')
   } catch {
-    // Fallback: open original URL even if tracking fails
+    // Fallback: open original URL even if server tracking fails
     window.open(destUrl, '_blank', 'noopener,noreferrer')
   }
 }
