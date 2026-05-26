@@ -1,5 +1,6 @@
 import logoImg from './assets/logo.png' // 1. Import your logo image here
 import { useState } from 'react'
+import { Analytics } from '@vercel/analytics/react'
 import { AppProvider, useApp }          from './context/AppContext'
 import { AuthScreen }                   from './components/AuthScreen'
 import { TopNav }                       from './components/TopNav'
@@ -163,6 +164,7 @@ export default function App() {
   return (
     <AppProvider>
       <AppInner />
+      <Analytics />
     </AppProvider>
   )
 }
