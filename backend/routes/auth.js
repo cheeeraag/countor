@@ -16,11 +16,10 @@ router.post('/signup', async (req, res) => {
 
   if (!name || !email || !password)
     return res.status(400).json({ error: 'Name, email and password are required.' })
-  if (password.length < 6)
-    return res.status(400).json({ error: 'Password must be at least 6 characters.' })
+  if (password.length < 8)
+    return res.status(400).json({ error: 'Password must be at least 8 characters.' })
 
   try {
-    // Duplicate check
     const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email])
     if (exists.rows.length) return res.status(409).json({ error: 'Account already exists. Please log in.' })
 
@@ -33,6 +32,7 @@ router.post('/signup', async (req, res) => {
          VALUES ($1,$2,$3,'superadmin',true) RETURNING *`,
         [name, email, hash]
       )
+      // Instantly log them in
       return res.json({ token: sign(rows[0]), user: safe(rows[0]) })
     }
 
@@ -66,6 +66,8 @@ router.post('/signup', async (req, res) => {
        VALUES ($1,$2,$3,'user',$4,true) RETURNING *`,
       [name, email, hash, resolvedOrgId]
     )
+    
+    // Instantly log the regular user in
     return res.json({ token: sign(rows[0]), user: safe(rows[0]) })
 
   } catch (err) {
@@ -84,6 +86,7 @@ router.post('/login', async (req, res) => {
     if (!rows.length) return res.status(401).json({ error: 'No account found. Please sign up.' })
 
     const user = rows[0]
+    
     const match = await bcrypt.compare(password, user.password_hash)
     if (!match) return res.status(401).json({ error: 'Incorrect password.' })
 
