@@ -1,4 +1,4 @@
-import logoImg from '../assets/logo.png' // 1. Import your logo image here
+import logoImg from '../assets/logo.png' 
 import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { orgsAPI } from '../utils/http'
@@ -9,12 +9,11 @@ const SUPERADMIN_EMAIL = import.meta.env.VITE_SUPERADMIN_EMAIL || 'admin@countor
 export function AuthScreen({ onPending }) {
   const { login, signup } = useApp()
   const [mode,       setMode]       = useState('login')
-  // Added confirmEmail and confirmPassword to form state
   const [form,       setForm]       = useState({ name:'', email:'', confirmEmail:'', password:'', confirmPassword:'', orgName:'', orgId:'' })
   const [err,        setErr]        = useState('')
   const [success,    setSuccess]    = useState('')
   const [loading,    setLoading]    = useState(false)
-  const [agreed,     setAgreed]     = useState(false) // Added state for Terms checkbox
+  const [agreed,     setAgreed]     = useState(false)
   const [approvedOrgs, setApprovedOrgs] = useState([])
 
   // Fetch approved orgs for the individual signup dropdown
@@ -26,29 +25,30 @@ export function AuthScreen({ onPending }) {
 
   const submit = async () => {
     setErr(''); setSuccess('')
-    if (!form.email || !form.password) { setErr('Please fill in all fields.'); return }
-    if (mode !== 'login' && !form.name) { setErr('Please enter your name.'); return }
     
-    // --- CONFIRMATION VALIDATION BLOCK ---
+    // --- VALIDATION BLOCK ---
+    if (!form.email || !form.password) { setErr('Please fill in all fields.'); return }
+    
     if (mode !== 'login') {
+      if (!form.name) { setErr('Please enter your name.'); return }
       if (form.email !== form.confirmEmail) { setErr('Emails do not match.'); return }
       if (form.password !== form.confirmPassword) { setErr('Passwords do not match.'); return }
       if (form.password.length < 6) { setErr('Password must be at least 6 characters.'); return }
-      if (!agreed) { setErr('You must agree to the Terms of Service and Privacy Policy.'); return } // Backup validation
+      if (!agreed) { setErr('You must agree to the Terms of Service and Privacy Policy.'); return }
     }
-    // ------------------------------------
-    
+    // ------------------------
+
     setLoading(true)
 
     try {
       if (mode === 'login') {
         const res = await login({ email: form.email, password: form.password })
-        if (res.pending) onPending(res.user)
-        // AppContext handles redirect on success via user state change
+        if (res && res.pending) onPending(res.user)
+        // AppContext handles redirect on successful login
 
       } else if (mode === 'user') {
-        const res = await signup({ name: form.name, email: form.email, password: form.password, orgId: form.orgId || null })
-        if (res.pending) onPending(res.user)
+        await signup({ name: form.name, email: form.email, password: form.password, orgId: form.orgId || null })
+        setSuccess('✅ Account created! Please check your email to verify your account before logging in.')
 
       } else if (mode === 'super') {
         if (form.email !== SUPERADMIN_EMAIL) {
@@ -56,13 +56,12 @@ export function AuthScreen({ onPending }) {
           setLoading(false); return
         }
         await signup({ name: form.name, email: form.email, password: form.password })
+        setSuccess('✅ Superadmin account created! Please check your email to verify your account.')
 
       } else if (mode === 'org') {
         if (!form.orgName?.trim()) { setErr('Please enter your organisation name.'); setLoading(false); return }
-        const res = await signup({ name: form.name, email: form.email, password: form.password, role: 'org_admin', orgName: form.orgName })
-        if (res.pending) {
-          setSuccess('✅ Request submitted! You will be notified once the Countor team approves your organisation.')
-        }
+        await signup({ name: form.name, email: form.email, password: form.password, role: 'org_admin', orgName: form.orgName })
+        setSuccess('✅ Request submitted! Please check your email to verify your account. You will be notified once the Countor team approves your organisation.')
       }
     } catch (e) {
       setErr(e.message || 'Something went wrong. Please try again.')
@@ -99,8 +98,8 @@ export function AuthScreen({ onPending }) {
                   setMode(m); 
                   setErr(''); 
                   setSuccess('');
-                  setAgreed(false); // Reset checkbox when switching tabs
-                  setForm({ name:'', email:'', confirmEmail:'', password:'', confirmPassword:'', orgName:'', orgId:'' }); // Reset all inputs cleanly
+                  setAgreed(false); 
+                  setForm({ name:'', email:'', confirmEmail:'', password:'', confirmPassword:'', orgName:'', orgId:'' }); 
                 }} 
                 style={{ flex:1, padding:'7px 4px', borderRadius:8, border:'none', fontSize:11, fontWeight:700, transition:'all .2s', background: mode===m ? 'var(--white)' : 'transparent', color: mode===m ? 'var(--green)' : 'var(--muted)', boxShadow: mode===m ? 'var(--shadow-sm)' : 'none', cursor:'pointer' }}
               >
@@ -120,63 +119,67 @@ export function AuthScreen({ onPending }) {
             </div>
           )}
 
-          {mode !== 'login' && <Field label="Full Name"  value={form.name}     onChange={v => up('name',v)}     placeholder="Your name"         onEnter={submit} />}
-          
-          <Field label="Email"     type="email"    value={form.email}    onChange={v => up('email',v)}    placeholder="you@example.com"   onEnter={submit} />
-          
-          {/* Added Confirm Email Field */}
-          {mode !== 'login' && (
-            <Field label="Confirm Email" type="email" value={form.confirmEmail} onChange={v => up('confirmEmail',v)} placeholder="Re-enter your email" onEnter={submit} />
-          )}
+          {/* Form Fields - Only show if not in success state */}
+          {!success && (
+            <>
+              {mode !== 'login' && <Field label="Full Name" value={form.name} onChange={v => up('name',v)} placeholder="Your name" onEnter={submit} />}
+              
+              <Field label="Email" type="email" value={form.email} onChange={v => up('email',v)} placeholder="you@example.com" onEnter={submit} />
+              
+              {mode !== 'login' && (
+                <Field label="Confirm Email" type="email" value={form.confirmEmail} onChange={v => up('confirmEmail',v)} placeholder="Re-enter your email" onEnter={submit} />
+              )}
 
-          <Field label="Password"  type="password" value={form.password} onChange={v => up('password',v)} placeholder="Min 6 characters" onEnter={submit} />
-          
-          {/* Added Confirm Password Field */}
-          {mode !== 'login' && (
-            <Field label="Confirm Password" type="password" value={form.confirmPassword} onChange={v => up('confirmPassword',v)} placeholder="Re-enter your password" onEnter={submit} />
-          )}
+              <Field label="Password" type="password" value={form.password} onChange={v => up('password',v)} placeholder="Min 6 characters" onEnter={submit} />
+              
+              {mode !== 'login' && (
+                <Field label="Confirm Password" type="password" value={form.confirmPassword} onChange={v => up('confirmPassword',v)} placeholder="Re-enter your password" onEnter={submit} />
+              )}
 
-          {mode === 'org' && (
-            <Field label="Organisation Name" value={form.orgName} onChange={v => up('orgName',v)} placeholder="e.g. Infosys, IIT Delhi..." onEnter={submit} />
-          )}
+              {mode === 'org' && (
+                <Field label="Organisation Name" value={form.orgName} onChange={v => up('orgName',v)} placeholder="e.g. Infosys, IIT Delhi..." onEnter={submit} />
+              )}
 
-          {mode === 'user' && approvedOrgs.length > 0 && (
-            <div style={{ marginBottom:16 }}>
-              <label style={{ fontSize:12, fontWeight:700, color:'var(--muted)', display:'block', marginBottom:6, textTransform:'uppercase', letterSpacing:.5 }}>Organisation (optional)</label>
-              <select value={form.orgId} onChange={e => up('orgId', e.target.value)}>
-                <option value="">— I'm an individual user —</option>
-                {approvedOrgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-              </select>
-              <p style={{ fontSize:11, color:'var(--muted)', marginTop:6 }}>Select if your organisation uses Countor. Your scores will be visible to your org admin.</p>
-            </div>
-          )}
+              {mode === 'user' && approvedOrgs.length > 0 && (
+                <div style={{ marginBottom:16 }}>
+                  <label style={{ fontSize:12, fontWeight:700, color:'var(--muted)', display:'block', marginBottom:6, textTransform:'uppercase', letterSpacing:.5 }}>Organisation (optional)</label>
+                  <select value={form.orgId} onChange={e => up('orgId', e.target.value)}>
+                    <option value="">— I'm an individual user —</option>
+                    {approvedOrgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                  </select>
+                  <p style={{ fontSize:11, color:'var(--muted)', marginTop:6 }}>Select if your organisation uses Countor. Your scores will be visible to your org admin.</p>
+                </div>
+              )}
 
-          {/* Legal Checkbox (Only shows during signup, hides on success) */}
-          {mode !== 'login' && !success && (
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 16 }}>
-              <input 
-                type="checkbox" 
-                id="terms" 
-                checked={agreed}
-                onChange={(e) => setAgreed(e.target.checked)}
-                style={{ width: 'auto', marginTop: 4, cursor: 'pointer' }}
-              />
-              <label htmlFor="terms" style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.4 }}>
-                I agree to Countor's <a href="/terms-of-service" target="_blank" rel="noreferrer">Terms of Service</a> and <a href="/privacy-policy" target="_blank" rel="noreferrer">Privacy Policy</a>.
-              </label>
-            </div>
+              {/* Legal Checkbox */}
+              {mode !== 'login' && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 16 }}>
+                  <input 
+                    type="checkbox" 
+                    id="terms" 
+                    checked={agreed}
+                    onChange={(e) => setAgreed(e.target.checked)}
+                    style={{ width: 'auto', marginTop: 4, cursor: 'pointer' }}
+                  />
+                  <label htmlFor="terms" style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.4 }}>
+                    I agree to Countor's <a href="/terms-of-service" target="_blank" rel="noreferrer">Terms of Service</a> and <a href="/privacy-policy" target="_blank" rel="noreferrer">Privacy Policy</a>.
+                  </label>
+                </div>
+              )}
+            </>
           )}
 
           {err     && <div style={{ background:'#FDEDEC', border:'1px solid #F1A9A0', borderRadius:8, padding:'10px 14px', marginBottom:14 }}><p style={{ color:'var(--red)', fontSize:13 }}>⚠️ {err}</p></div>}
           {success && <div style={{ background:'var(--green-pale)', border:'1px solid var(--green-pale2)', borderRadius:8, padding:'10px 14px', marginBottom:14 }}><p style={{ color:'var(--green)', fontSize:13 }}>{success}</p></div>}
 
-          {!success && (
+          {!success ? (
             <button className="btn-primary" onClick={submit} disabled={isSubmitDisabled} style={{ width:'100%', padding:'13px', fontSize:15, justifyContent:'center' }}>
               {loading ? <Spinner /> : mode==='login' ? 'Log In →' : mode==='org' ? 'Request Organisation Access →' : 'Create Account →'}
             </button>
-          )}
-          {success && (
-            <button className="btn-outline" onClick={() => { setMode('login'); setSuccess(''); setForm({ name:'', email:'', confirmEmail:'', password:'', confirmPassword:'', orgName:'', orgId:'' }) }} style={{ width:'100%', justifyContent:'center', padding:'13px' }}>Back to Log In →</button>
+          ) : (
+            <button className="btn-outline" onClick={() => { setMode('login'); setSuccess(''); setForm({ name:'', email:'', confirmEmail:'', password:'', confirmPassword:'', orgName:'', orgId:'' }) }} style={{ width:'100%', justifyContent:'center', padding:'13px' }}>
+              Back to Log In →
+            </button>
           )}
         </div>
         <p style={{ textAlign:'center', marginTop:14, fontSize:12, color:'var(--muted)' }}>🔒 Data stored securely in the backend database.</p>
