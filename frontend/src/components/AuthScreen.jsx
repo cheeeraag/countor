@@ -45,7 +45,7 @@ export function AuthScreen({ onPending }) {
 
       } else if (mode === 'user') {
         await signup({ name: form.name, email: form.email, password: form.password, orgId: form.orgId || null })
-        setSuccess('✅ Account created! Please check your email to verify your account before logging in.')
+        // No success message needed here anymore; AppContext auto-logs them in and routes them away.
 
       } else if (mode === 'super') {
         if (form.email !== SUPERADMIN_EMAIL) {
@@ -53,12 +53,14 @@ export function AuthScreen({ onPending }) {
           setLoading(false); return
         }
         await signup({ name: form.name, email: form.email, password: form.password })
-        setSuccess('✅ Superadmin account created! Please check your email to verify your account.')
+        // No success message needed here either; AppContext auto-logs them in.
 
       } else if (mode === 'org') {
         if (!form.orgName?.trim()) { setErr('Please enter your organisation name.'); setLoading(false); return }
         await signup({ name: form.name, email: form.email, password: form.password, role: 'org_admin', orgName: form.orgName })
-        setSuccess('✅ Request submitted! Please check your email to verify your account. You will be notified once the Countor team approves your organisation.')
+        
+        // Org admins are pending, so they still need a success message (minus the email part).
+        setSuccess('✅ Request submitted! You will be notified once the Countor team approves your organisation.')
       }
     } catch (e) {
       setErr(e.message || 'Something went wrong. Please try again.')
@@ -181,7 +183,6 @@ export function AuthScreen({ onPending }) {
 }
 
 function Field({ label, type='text', value, onChange, placeholder, onEnter }) {
-  // Added state to toggle password visibility
   const [showPassword, setShowPassword] = useState(false);
   const isPasswordType = type === 'password';
 
@@ -189,25 +190,21 @@ function Field({ label, type='text', value, onChange, placeholder, onEnter }) {
     <div style={{ marginBottom:14 }}>
       <label style={{ fontSize:12, fontWeight:700, color:'var(--muted)', display:'block', marginBottom:6, textTransform:'uppercase', letterSpacing:.5 }}>{label}</label>
       
-      {/* Wrapper div to position the eye icon inside the input field */}
       <div style={{ position: 'relative' }}>
         <input 
-          // Switch between 'text' and 'password' if the button is clicked
           type={isPasswordType && showPassword ? 'text' : type} 
           placeholder={placeholder} 
           value={value} 
           onChange={e => onChange(e.target.value)} 
           onKeyDown={e => e.key==='Enter' && onEnter()} 
-          // Add extra padding on the right so text doesn't type *under* the icon
           style={isPasswordType ? { paddingRight: '40px', width: '100%', boxSizing: 'border-box' } : { width: '100%', boxSizing: 'border-box' }}
         />
         
-        {/* Only render the toggle button if it's a password field */}
         {isPasswordType && (
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            tabIndex="-1" // Prevents the 'Tab' key from selecting the eye icon while typing
+            tabIndex="-1" 
             style={{
               position: 'absolute',
               right: '12px',
@@ -223,13 +220,11 @@ function Field({ label, type='text', value, onChange, placeholder, onEnter }) {
             }}
           >
             {showPassword ? (
-              // "Eye Closed" SVG (Hide Password)
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
                 <line x1="1" y1="1" x2="23" y2="23"></line>
               </svg>
             ) : (
-              // "Eye Open" SVG (Show Password)
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                 <circle cx="12" cy="12" r="3"></circle>
