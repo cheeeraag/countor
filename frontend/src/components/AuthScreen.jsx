@@ -9,7 +9,8 @@ const SUPERADMIN_EMAIL = import.meta.env.VITE_SUPERADMIN_EMAIL || 'admin@countor
 export function AuthScreen({ onPending }) {
   const { login, signup } = useApp()
   const [mode,       setMode]       = useState('login')
-  const [form,       setForm]       = useState({ name:'', email:'', password:'', orgName:'', orgId:'' })
+  // Added confirmEmail and confirmPassword to form state
+  const [form,       setForm]       = useState({ name:'', email:'', confirmEmail:'', password:'', confirmPassword:'', orgName:'', orgId:'' })
   const [err,        setErr]        = useState('')
   const [success,    setSuccess]    = useState('')
   const [loading,    setLoading]    = useState(false)
@@ -27,8 +28,15 @@ export function AuthScreen({ onPending }) {
     setErr(''); setSuccess('')
     if (!form.email || !form.password) { setErr('Please fill in all fields.'); return }
     if (mode !== 'login' && !form.name) { setErr('Please enter your name.'); return }
-    if (mode !== 'login' && form.password.length < 6) { setErr('Password must be at least 6 characters.'); return }
-    if (mode !== 'login' && !agreed) { setErr('You must agree to the Terms of Service and Privacy Policy.'); return } // Backup validation
+    
+    // --- CONFIRMATION VALIDATION BLOCK ---
+    if (mode !== 'login') {
+      if (form.email !== form.confirmEmail) { setErr('Emails do not match.'); return }
+      if (form.password !== form.confirmPassword) { setErr('Passwords do not match.'); return }
+      if (form.password.length < 6) { setErr('Password must be at least 6 characters.'); return }
+      if (!agreed) { setErr('You must agree to the Terms of Service and Privacy Policy.'); return } // Backup validation
+    }
+    // ------------------------------------
     
     setLoading(true)
 
@@ -92,6 +100,7 @@ export function AuthScreen({ onPending }) {
                   setErr(''); 
                   setSuccess('');
                   setAgreed(false); // Reset checkbox when switching tabs
+                  setForm({ name:'', email:'', confirmEmail:'', password:'', confirmPassword:'', orgName:'', orgId:'' }); // Reset all inputs cleanly
                 }} 
                 style={{ flex:1, padding:'7px 4px', borderRadius:8, border:'none', fontSize:11, fontWeight:700, transition:'all .2s', background: mode===m ? 'var(--white)' : 'transparent', color: mode===m ? 'var(--green)' : 'var(--muted)', boxShadow: mode===m ? 'var(--shadow-sm)' : 'none', cursor:'pointer' }}
               >
@@ -112,8 +121,20 @@ export function AuthScreen({ onPending }) {
           )}
 
           {mode !== 'login' && <Field label="Full Name"  value={form.name}     onChange={v => up('name',v)}     placeholder="Your name"         onEnter={submit} />}
+          
           <Field label="Email"     type="email"    value={form.email}    onChange={v => up('email',v)}    placeholder="you@example.com"   onEnter={submit} />
+          
+          {/* Added Confirm Email Field */}
+          {mode !== 'login' && (
+            <Field label="Confirm Email" type="email" value={form.confirmEmail} onChange={v => up('confirmEmail',v)} placeholder="Re-enter your email" onEnter={submit} />
+          )}
+
           <Field label="Password"  type="password" value={form.password} onChange={v => up('password',v)} placeholder="Min 6 characters" onEnter={submit} />
+          
+          {/* Added Confirm Password Field */}
+          {mode !== 'login' && (
+            <Field label="Confirm Password" type="password" value={form.confirmPassword} onChange={v => up('confirmPassword',v)} placeholder="Re-enter your password" onEnter={submit} />
+          )}
 
           {mode === 'org' && (
             <Field label="Organisation Name" value={form.orgName} onChange={v => up('orgName',v)} placeholder="e.g. Infosys, IIT Delhi..." onEnter={submit} />
@@ -141,7 +162,7 @@ export function AuthScreen({ onPending }) {
                 style={{ width: 'auto', marginTop: 4, cursor: 'pointer' }}
               />
               <label htmlFor="terms" style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.4 }}>
-                I agree to Countor's <a href="/terms" target="_blank" rel="noreferrer">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
+                I agree to Countor's <a href="/terms-of-service" target="_blank" rel="noreferrer">Terms of Service</a> and <a href="/privacy-policy" target="_blank" rel="noreferrer">Privacy Policy</a>.
               </label>
             </div>
           )}
@@ -155,7 +176,7 @@ export function AuthScreen({ onPending }) {
             </button>
           )}
           {success && (
-            <button className="btn-outline" onClick={() => { setMode('login'); setSuccess(''); setForm({ name:'', email:'', password:'', orgName:'', orgId:'' }) }} style={{ width:'100%', justifyContent:'center', padding:'13px' }}>Back to Log In →</button>
+            <button className="btn-outline" onClick={() => { setMode('login'); setSuccess(''); setForm({ name:'', email:'', confirmEmail:'', password:'', confirmPassword:'', orgName:'', orgId:'' }) }} style={{ width:'100%', justifyContent:'center', padding:'13px' }}>Back to Log In →</button>
           )}
         </div>
         <p style={{ textAlign:'center', marginTop:14, fontSize:12, color:'var(--muted)' }}>🔒 Data stored securely in the backend database.</p>
