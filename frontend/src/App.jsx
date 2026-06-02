@@ -66,7 +66,7 @@ function AppInner() {
           <p style={{ color:'var(--muted)', fontSize:14, lineHeight:1.7, marginBottom:24 }}>
             Your organisation admin request is under review. You will be notified once the Countor team approves it.
             <br /><br />
-            Questions? Email <strong>admin@countor.app</strong>
+            Questions? Email <strong>countor.corporatecommunications@gmail.com</strong>
           </p>
           <div style={{ background:'var(--green-pale)', border:'1px solid var(--green-pale2)', borderRadius:12, padding:'14px 18px' }}>
             <p style={{ fontSize:13, color:'var(--green)' }}>
@@ -86,7 +86,7 @@ function AppInner() {
           <p style={{ fontSize:52, marginBottom:16 }}>❌</p>
           <h2 style={{ fontFamily:"'Lora',serif", fontSize:22, marginBottom:12 }}>Request Not Approved</h2>
           <p style={{ color:'var(--muted)', fontSize:14, lineHeight:1.7 }}>
-            Your organisation request was not approved. Contact <strong>admin@countor.app</strong> for more information.
+            Your organisation request was not approved. Contact <strong>countor.corporatecommunications@gmail.com</strong> for more information.
           </p>
         </div>
       </div>
