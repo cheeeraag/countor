@@ -130,7 +130,7 @@ export function AuthScreen({ onPending }) {
                 <Field label="Confirm Email" type="email" value={form.confirmEmail} onChange={v => up('confirmEmail',v)} placeholder="Re-enter your email" onEnter={submit} />
               )}
 
-              <Field label="Password" type="password" value={form.password} onChange={v => up('password',v)} placeholder="Min 6 characters" onEnter={submit} />
+              <Field label="Password" type="password" value={form.password} onChange={v => up('password',v)} placeholder="Min 8 characters" onEnter={submit} />
               
               {mode !== 'login' && (
                 <Field label="Confirm Password" type="password" value={form.confirmPassword} onChange={v => up('confirmPassword',v)} placeholder="Re-enter your password" onEnter={submit} />
@@ -174,11 +174,11 @@ export function AuthScreen({ onPending }) {
 
           {!success ? (
             <button className="btn-primary" onClick={submit} disabled={isSubmitDisabled} style={{ width:'100%', padding:'13px', fontSize:15, justifyContent:'center' }}>
-              {loading ? <Spinner /> : mode==='login' ? 'Log In →' : mode==='org' ? 'Request Organisation Access →' : 'Create Account →'}
+              {loading ? <Spinner /> : mode==='login' ? 'Log In' : mode==='org' ? 'Request Organisation Access' : 'Create Account'}
             </button>
           ) : (
             <button className="btn-outline" onClick={() => { setMode('login'); setSuccess(''); setForm({ name:'', email:'', confirmEmail:'', password:'', confirmPassword:'', orgName:'', orgId:'' }) }} style={{ width:'100%', justifyContent:'center', padding:'13px' }}>
-              Back to Log In →
+              Back to Log In
             </button>
           )}
         </div>
