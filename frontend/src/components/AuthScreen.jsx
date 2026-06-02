@@ -9,14 +9,13 @@ const SUPERADMIN_EMAIL = import.meta.env.VITE_SUPERADMIN_EMAIL || 'admin@countor
 export function AuthScreen({ onPending }) {
   const { login, signup } = useApp()
   const [mode,       setMode]       = useState('login')
-  const [form,       setForm]       = useState({ name:'', email:'', confirmEmail:'', password:'', confirmPassword:'', orgName:'', orgId:'' })
+  const [form,       setForm]       = useState({ name:'', email:'', password:'', confirmPassword:'', orgName:'', orgId:'' })
   const [err,        setErr]        = useState('')
   const [success,    setSuccess]    = useState('')
   const [loading,    setLoading]    = useState(false)
   const [agreed,     setAgreed]     = useState(false)
   const [approvedOrgs, setApprovedOrgs] = useState([])
 
-  // Fetch approved orgs for the individual signup dropdown
   useEffect(() => {
     orgsAPI.approved().then(setApprovedOrgs).catch(() => {})
   }, [])
@@ -31,7 +30,6 @@ export function AuthScreen({ onPending }) {
     
     if (mode !== 'login') {
       if (!form.name) { setErr('Please enter your name.'); return }
-      if (form.email !== form.confirmEmail) { setErr('Emails do not match.'); return }
       if (form.password !== form.confirmPassword) { setErr('Passwords do not match.'); return }
       if (form.password.length < 8) { setErr('Password must be at least 8 characters.'); return }
       if (!agreed) { setErr('You must agree to the Terms of Service and Privacy Policy.'); return }
@@ -44,7 +42,6 @@ export function AuthScreen({ onPending }) {
       if (mode === 'login') {
         const res = await login({ email: form.email, password: form.password })
         if (res && res.pending) onPending(res.user)
-        // AppContext handles redirect on successful login
 
       } else if (mode === 'user') {
         await signup({ name: form.name, email: form.email, password: form.password, orgId: form.orgId || null })
@@ -70,7 +67,6 @@ export function AuthScreen({ onPending }) {
     setLoading(false)
   }
 
-  // Calculate if the submit button should be disabled
   const isSubmitDisabled = loading || (mode !== 'login' && !agreed);
 
   return (
@@ -99,7 +95,7 @@ export function AuthScreen({ onPending }) {
                   setErr(''); 
                   setSuccess('');
                   setAgreed(false); 
-                  setForm({ name:'', email:'', confirmEmail:'', password:'', confirmPassword:'', orgName:'', orgId:'' }); 
+                  setForm({ name:'', email:'', password:'', confirmPassword:'', orgName:'', orgId:'' }); 
                 }} 
                 style={{ flex:1, padding:'7px 4px', borderRadius:8, border:'none', fontSize:11, fontWeight:700, transition:'all .2s', background: mode===m ? 'var(--white)' : 'transparent', color: mode===m ? 'var(--green)' : 'var(--muted)', boxShadow: mode===m ? 'var(--shadow-sm)' : 'none', cursor:'pointer' }}
               >
@@ -125,10 +121,6 @@ export function AuthScreen({ onPending }) {
               {mode !== 'login' && <Field label="Full Name" value={form.name} onChange={v => up('name',v)} placeholder="Your name" onEnter={submit} />}
               
               <Field label="Email" type="email" value={form.email} onChange={v => up('email',v)} placeholder="you@example.com" onEnter={submit} />
-              
-              {mode !== 'login' && (
-                <Field label="Confirm Email" type="email" value={form.confirmEmail} onChange={v => up('confirmEmail',v)} placeholder="Re-enter your email" onEnter={submit} />
-              )}
 
               <Field label="Password" type="password" value={form.password} onChange={v => up('password',v)} placeholder="Min 8 characters" onEnter={submit} />
               
@@ -177,7 +169,7 @@ export function AuthScreen({ onPending }) {
               {loading ? <Spinner /> : mode==='login' ? 'Log In' : mode==='org' ? 'Request Organisation Access' : 'Create Account'}
             </button>
           ) : (
-            <button className="btn-outline" onClick={() => { setMode('login'); setSuccess(''); setForm({ name:'', email:'', confirmEmail:'', password:'', confirmPassword:'', orgName:'', orgId:'' }) }} style={{ width:'100%', justifyContent:'center', padding:'13px' }}>
+            <button className="btn-outline" onClick={() => { setMode('login'); setSuccess(''); setForm({ name:'', email:'', password:'', confirmPassword:'', orgName:'', orgId:'' }) }} style={{ width:'100%', justifyContent:'center', padding:'13px' }}>
               Back to Log In
             </button>
           )}
@@ -189,10 +181,63 @@ export function AuthScreen({ onPending }) {
 }
 
 function Field({ label, type='text', value, onChange, placeholder, onEnter }) {
+  // Added state to toggle password visibility
+  const [showPassword, setShowPassword] = useState(false);
+  const isPasswordType = type === 'password';
+
   return (
     <div style={{ marginBottom:14 }}>
       <label style={{ fontSize:12, fontWeight:700, color:'var(--muted)', display:'block', marginBottom:6, textTransform:'uppercase', letterSpacing:.5 }}>{label}</label>
-      <input type={type} placeholder={placeholder} value={value} onChange={e => onChange(e.target.value)} onKeyDown={e => e.key==='Enter' && onEnter()} />
+      
+      {/* Wrapper div to position the eye icon inside the input field */}
+      <div style={{ position: 'relative' }}>
+        <input 
+          // Switch between 'text' and 'password' if the button is clicked
+          type={isPasswordType && showPassword ? 'text' : type} 
+          placeholder={placeholder} 
+          value={value} 
+          onChange={e => onChange(e.target.value)} 
+          onKeyDown={e => e.key==='Enter' && onEnter()} 
+          // Add extra padding on the right so text doesn't type *under* the icon
+          style={isPasswordType ? { paddingRight: '40px', width: '100%', boxSizing: 'border-box' } : { width: '100%', boxSizing: 'border-box' }}
+        />
+        
+        {/* Only render the toggle button if it's a password field */}
+        {isPasswordType && (
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            tabIndex="-1" // Prevents the 'Tab' key from selecting the eye icon while typing
+            style={{
+              position: 'absolute',
+              right: '12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--muted)',
+              display: 'flex',
+              alignItems: 'center',
+              padding: 0
+            }}
+          >
+            {showPassword ? (
+              // "Eye Closed" SVG (Hide Password)
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            ) : (
+              // "Eye Open" SVG (Show Password)
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            )}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
