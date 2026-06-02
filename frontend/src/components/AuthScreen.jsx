@@ -33,7 +33,7 @@ export function AuthScreen({ onPending }) {
       if (!form.name) { setErr('Please enter your name.'); return }
       if (form.email !== form.confirmEmail) { setErr('Emails do not match.'); return }
       if (form.password !== form.confirmPassword) { setErr('Passwords do not match.'); return }
-      if (form.password.length < 6) { setErr('Password must be at least 6 characters.'); return }
+      if (form.password.length < 8) { setErr('Password must be at least 6 characters.'); return }
       if (!agreed) { setErr('You must agree to the Terms of Service and Privacy Policy.'); return }
     }
     // ------------------------
