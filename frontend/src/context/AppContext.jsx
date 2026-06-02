@@ -31,8 +31,11 @@ export function AppProvider({ children }) {
   const login = async (credentials) => {
     const res = await authAPI.login(credentials)
     if (res.pending) return { pending: true, user: res.user }
+    
+    // Only the LOGIN function should set tokens and establish sessions
     token.set(res.token)
     setUser(res.user)
+    
     if (!['org_admin_pending', 'rejected'].includes(res.user.role)) {
       const h = await checkinsAPI.history()
       setHistory(h)
@@ -44,9 +47,10 @@ export function AppProvider({ children }) {
   const signup = async (formData) => {
     const res = await authAPI.signup(formData)
     if (res.pending) return { pending: true, user: res.user }
-    token.set(res.token)
-    setUser(res.user)
-    setHistory([])
+    
+    // 🚨 FIX: We no longer auto-login the user here. 
+    // We just return success so the AuthScreen can tell them to check their email.
+    
     return { pending: false, user: res.user }
   }
 
