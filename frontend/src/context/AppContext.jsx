@@ -41,14 +41,19 @@ export function AppProvider({ children }) {
   }
 
   // ── Signup ───────────────────────────────────────────────────────────────
-  const signup = async (formData) => {
-    const res = await authAPI.signup(formData)
-    if (res.pending) return { pending: true, user: res.user }
-    token.set(res.token)
-    setUser(res.user)
-    setHistory([])
-    return { pending: false, user: res.user }
-  }
+  const signup = async (formData) => {
+    const res = await authAPI.signup(formData)
+    
+    // If it's a pending org admin, don't log them in yet
+    if (res.pending) return { pending: true, user: res.user }
+    
+    // For regular users and superadmins, auto-login immediately
+    token.set(res.token)
+    setUser(res.user)
+    setHistory([])
+    
+    return { pending: false, user: res.user }
+  }
 
   // ── Logout ───────────────────────────────────────────────────────────────
   const logout = () => {
