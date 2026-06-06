@@ -20,8 +20,23 @@ router.post('/signup', async (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 8 characters.' })
 
   try {
-    const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email])
-    if (exists.rows.length) return res.status(409).json({ error: 'Account already exists. Please log in.' })
+    // Check if user exists
+    const exists = await pool.query('SELECT id, role, org_id FROM users WHERE email = $1', [email])
+    
+    if (exists.rows.length) {
+      const existingUser = exists.rows[0]
+      
+      // FIX C: If they were rejected, delete the old records so they can try again fresh
+      if (existingUser.role === 'rejected') {
+        await pool.query('DELETE FROM users WHERE id = $1', [existingUser.id])
+        if (existingUser.org_id) {
+          await pool.query('DELETE FROM organisations WHERE id = $1', [existingUser.org_id])
+        }
+      } else {
+        // If they are active or pending, block the duplicate signup
+        return res.status(409).json({ error: 'Account already exists. Please log in.' })
+      }
+    }
 
     const hash = await bcrypt.hash(password, 12)
 
@@ -32,7 +47,6 @@ router.post('/signup', async (req, res) => {
          VALUES ($1,$2,$3,'superadmin',true) RETURNING *`,
         [name, email, hash]
       )
-      // Instantly log them in
       return res.json({ token: sign(rows[0]), user: safe(rows[0]) })
     }
 
@@ -52,9 +66,11 @@ router.post('/signup', async (req, res) => {
          VALUES ($1,$2,$3,'org_admin_pending',$4,false) RETURNING *`,
         [name, email, hash, org.id]
       )
+      
+      // FIX A: Send a token back even during signup so they auto-login to the waiting room
       return res.status(202).json({
         pending: true,
-        message: 'Organisation request submitted. Awaiting superadmin approval.',
+        token: sign(userRows[0]), 
         user: safe(userRows[0]),
       })
     }
@@ -66,8 +82,6 @@ router.post('/signup', async (req, res) => {
        VALUES ($1,$2,$3,'user',$4,true) RETURNING *`,
       [name, email, hash, resolvedOrgId]
     )
-    
-    // Instantly log the regular user in
     return res.json({ token: sign(rows[0]), user: safe(rows[0]) })
 
   } catch (err) {
@@ -91,10 +105,11 @@ router.post('/login', async (req, res) => {
     if (!match) return res.status(401).json({ error: 'Incorrect password.' })
 
     if (user.role === 'rejected')
-      return res.status(403).json({ error: 'Your organisation request was not approved.' })
+      return res.status(403).json({ error: 'Your organisation request was rejected. Please sign up again to reapply.' })
 
+    // FIX A: Send a token back so React can log them into the Waiting Room
     if (user.role === 'org_admin_pending')
-      return res.status(202).json({ pending: true, user: safe(user) })
+      return res.status(202).json({ pending: true, token: sign(user), user: safe(user) })
 
     res.json({ token: sign(user), user: safe(user) })
   } catch (err) {
