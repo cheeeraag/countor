@@ -1,4 +1,4 @@
-import logoImg from './assets/logo.png' // 1. Import your logo image here
+import logoImg from './assets/logo.png' 
 import { useState } from 'react'
 import { Analytics } from '@vercel/analytics/react'
 import { AppProvider, useApp }          from './context/AppContext'
@@ -18,14 +18,14 @@ import { Footer }                       from './components/Footer'
 import { Spinner }                      from './components/UI'
 
 function AppInner() {
-  const { user, loading, saveCheckin, isAdmin, isPending, isRejected } = useApp()
-  const [page,       setPage]       = useState('dashboard')
-  const [subPage,    setSubPage]    = useState(null)
-  const [lastResult, setLastResult] = useState(null)
-  const [pendingUser,setPendingUser] = useState(null)
+  // Added 'logout' here so we can use it in the pending/rejected screens
+  const { user, loading, saveCheckin, isAdmin, isPending, isRejected, logout } = useApp()
+  const [page,        setPage]        = useState('dashboard')
+  const [subPage,     setSubPage]     = useState(null)
+  const [lastResult,  setLastResult]  = useState(null)
+  const [pendingUser, setPendingUser] = useState(null)
 
   // ── 1. Intercept Legal URLs immediately ────────────────────────────────────────
-  // This allows the target="_blank" links from the Auth and Footer to work directly
   const currentPath = window.location.pathname;
   if (currentPath === '/terms') {
     return <TermsOfService />;
@@ -52,7 +52,7 @@ function AppInner() {
   }
 
   // ── Not logged in ────────────────────────────────────────────────────────────
-  if (!user) {
+  if (!user && !pendingUser) {
     return <AuthScreen onPending={(u) => setPendingUser(u)} />
   }
 
@@ -60,7 +60,7 @@ function AppInner() {
   if (isPending || pendingUser) {
     return (
       <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--cream)', padding:20 }}>
-        <div style={{ maxWidth:440, textAlign:'center' }}>
+        <div style={{ maxWidth:440, textAlign:'center', width: '100%' }}>
           <p style={{ fontSize:52, marginBottom:16 }}>⏳</p>
           <h2 style={{ fontFamily:"'Lora',serif", fontSize:22, marginBottom:12 }}>Awaiting Approval</h2>
           <p style={{ color:'var(--muted)', fontSize:14, lineHeight:1.7, marginBottom:24 }}>
@@ -68,11 +68,20 @@ function AppInner() {
             <br /><br />
             Questions? Email <strong>countor.corporatecommunications@gmail.com</strong>
           </p>
-          <div style={{ background:'var(--green-pale)', border:'1px solid var(--green-pale2)', borderRadius:12, padding:'14px 18px' }}>
+          <div style={{ background:'var(--green-pale)', border:'1px solid var(--green-pale2)', borderRadius:12, padding:'14px 18px', marginBottom: 20 }}>
             <p style={{ fontSize:13, color:'var(--green)' }}>
               Logged in as <strong>{user?.email || pendingUser?.email}</strong>
             </p>
           </div>
+          
+          {/* Added Log Out Button */}
+          <button 
+            className="btn-outline" 
+            onClick={() => { setPendingUser(null); logout(); }} 
+            style={{ width: '100%', justifyContent: 'center', padding: '12px' }}
+          >
+            Log Out
+          </button>
         </div>
       </div>
     )
@@ -82,12 +91,21 @@ function AppInner() {
   if (isRejected) {
     return (
       <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--cream)', padding:20 }}>
-        <div style={{ maxWidth:440, textAlign:'center' }}>
+        <div style={{ maxWidth:440, textAlign:'center', width: '100%' }}>
           <p style={{ fontSize:52, marginBottom:16 }}>❌</p>
           <h2 style={{ fontFamily:"'Lora',serif", fontSize:22, marginBottom:12 }}>Request Not Approved</h2>
-          <p style={{ color:'var(--muted)', fontSize:14, lineHeight:1.7 }}>
+          <p style={{ color:'var(--muted)', fontSize:14, lineHeight:1.7, marginBottom: 24 }}>
             Your organisation request was not approved. Contact <strong>countor.corporatecommunications@gmail.com</strong> for more information.
           </p>
+          
+          {/* Added Log Out Button */}
+          <button 
+            className="btn-outline" 
+            onClick={logout} 
+            style={{ width: '100%', justifyContent: 'center', padding: '12px' }}
+          >
+            Log Out
+          </button>
         </div>
       </div>
     )
