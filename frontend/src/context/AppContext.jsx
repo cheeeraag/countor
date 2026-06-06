@@ -28,33 +28,37 @@ export function AppProvider({ children }) {
   }, [])
 
   // ── Login ────────────────────────────────────────────────────────────────
-  const login = async (credentials) => {
-    const res = await authAPI.login(credentials)
-    if (res.pending) return { pending: true, user: res.user }
-    token.set(res.token)
-    setUser(res.user)
-    if (!['org_admin_pending', 'rejected'].includes(res.user.role)) {
-      const h = await checkinsAPI.history()
-      setHistory(h)
-    }
-    return { pending: false, user: res.user }
-  }
+  const login = async (credentials) => {
+    const res = await authAPI.login(credentials)
+    
+    // FIX B: Save the token and user unconditionally to avoid limbo states
+    if (res.token) {
+      token.set(res.token)
+      setUser(res.user)
+    }
 
-  // ── Signup ───────────────────────────────────────────────────────────────
+    // Only fetch history if they are actually approved
+    if (!['org_admin_pending', 'rejected'].includes(res.user.role)) {
+      const h = await checkinsAPI.history()
+      setHistory(h)
+    }
+    
+    return res
+  }
+
+  // ── Signup ───────────────────────────────────────────────────────────────
   const signup = async (formData) => {
     const res = await authAPI.signup(formData)
     
-    // If it's a pending org admin, don't log them in yet
-    if (res.pending) return { pending: true, user: res.user }
+    // Save the token and user unconditionally
+    if (res.token) {
+      token.set(res.token)
+      setUser(res.user)
+    }
     
-    // For regular users and superadmins, auto-login immediately
-    token.set(res.token)
-    setUser(res.user)
     setHistory([])
-    
-    return { pending: false, user: res.user }
+    return res
   }
-
   // ── Logout ───────────────────────────────────────────────────────────────
   const logout = () => {
     token.remove()
