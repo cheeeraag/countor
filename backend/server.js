@@ -1,3 +1,7 @@
+require('node:dns').setDefaultResultOrder('ipv4first');
+
+// ... the rest of your imports (express, cors, etc.)
+// const express = require('express');
 require('dotenv').config()
 
 const express = require('express')
