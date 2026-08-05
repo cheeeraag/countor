@@ -18,19 +18,36 @@ const app  = express()
 const PORT = process.env.PORT || 3001
 
 // ── Middleware ────────────────────────────────────────────────────────────
-app.use(cors({
-  origin: (process.env.FRONTEND_URL || 'http://localhost:5173').split(',').map(s => s.trim()),
-  credentials: true,
-}))
-app.use(express.json())
+// ── Middleware ────────────────────────────────────────────────────────────
 
-// ── Request logger (dev only) ─────────────────────────────────────────────
-if (process.env.NODE_ENV !== 'production') {
-  app.use((req, _res, next) => {
-    console.log(`${req.method} ${req.path}`)
-    next()
-  })
-}
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
+  .split(',')
+  .map(s => s.trim());
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // 1. Allow requests with no origin (e.g., Postman, server-to-server)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    // 2. If the origin matches our allowed list, let it through
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } 
+    
+    // 3. If it fails, print the exact mismatch to Railway Deploy Logs!
+    console.error(`🚨 CORS BLOCKED!`);
+    console.error(`➡️ Incoming Request Origin: "${origin}"`);
+    console.error(`✅ Allowed Origins List:`, allowedOrigins);
+    
+    // Reject the request
+    return callback(null, false);
+  },
+  credentials: true,
+}));
+
+app.use(express.json())
 
 // ── Routes ────────────────────────────────────────────────────────────────
 app.use('/api/auth',     authRoutes)
