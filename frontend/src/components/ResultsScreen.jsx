@@ -2,8 +2,11 @@ import React from 'react';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { PageShell } from './UI';
 
-export function ResultsScreen({ result, recommendations = [], onDashboard }) {
+export function ResultsScreen({ result, onDashboard }) {
+  // 1. Properly extract BOTH the checkin scores and the recommendations array from the backend payload
   const checkin = result?.checkin || result || {};
+  const recommendations = result?.recommendations || [];
+  
   const xNorm = checkin.x_score_norm || 0;
   const yNorm = checkin.y_score_norm || 0;
   const isCrisis = checkin.suicidality_flag;
@@ -43,9 +46,12 @@ export function ResultsScreen({ result, recommendations = [], onDashboard }) {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-              <XAxis type="number" dataKey="x" name="Distress" domain={[100, 0]} reversed={true} hide={true} />
-              <YAxis type="number" dataKey="y" name="Wellbeing" domain={[0, 100]} hide={true} />
-              <Tooltip content={<CustomTooltip />} />
+              
+              {/* 2. Removed hide={true} to make the 0-100 axes numbers visible */}
+              <XAxis type="number" dataKey="x" name="Distress" domain={[100, 0]} reversed={true} />
+              <YAxis type="number" dataKey="y" name="Wellbeing" domain={[0, 100]} />
+              
+              <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }} />
               <Scatter data={data} fill="#1B5E3B" shape="circle" />
             </ScatterChart>
           </ResponsiveContainer>
@@ -68,15 +74,21 @@ export function ResultsScreen({ result, recommendations = [], onDashboard }) {
       {/* Tailored Platform Recommendations */}
       <h3 style={{ marginBottom: 16, fontFamily: "'Lora', serif" }}>Personalized Matches For You</h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 32 }}>
-        {recommendations.map((p, i) => (
-          <div key={i} className="card" style={{ padding: 20, border: '1px solid var(--border)' }}>
-            <h4 style={{ margin: 0, fontSize: 16, color: 'var(--green)' }}>{p.name}</h4>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 8, marginBottom: 16, lineHeight: 1.5 }}>{p.prop}</p>
-            <a href={p.url} target="_blank" rel="noreferrer" className="btn-primary" style={{ fontSize: 13, display: 'inline-flex', padding: '8px 16px', textDecoration: 'none' }}>
-              Visit Platform →
-            </a>
+        {recommendations.length > 0 ? (
+          recommendations.map((p, i) => (
+            <div key={i} className="card" style={{ padding: 20, border: '1px solid var(--border)' }}>
+              <h4 style={{ margin: 0, fontSize: 16, color: 'var(--green)' }}>{p.name}</h4>
+              <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 8, marginBottom: 16, lineHeight: 1.5 }}>{p.prop}</p>
+              <a href={p.url} target="_blank" rel="noreferrer" className="btn-primary" style={{ fontSize: 13, display: 'inline-flex', padding: '8px 16px', textDecoration: 'none' }}>
+                Visit Platform →
+              </a>
+            </div>
+          ))
+        ) : (
+          <div className="card" style={{ padding: 20, textAlign: 'center' }}>
+            <p style={{ color: 'var(--muted)', fontSize: 14 }}>No exact matches found. Please ensure the platforms database is seeded.</p>
           </div>
-        ))}
+        )}
       </div>
 
       <button className="btn-primary" style={{ width: '100%', padding: '14px' }} onClick={onDashboard}>
