@@ -85,7 +85,15 @@ export function calcStreak(history) {
   }
   return streak
 }
-
 // Updated to use the new y_score_norm instead of the old 1D score
 function scoreImproved(h,days,amount){if(h.length<2)return false;const s=[...h].sort((a,b)=>new Date(a.date)-new Date(b.date)).slice(-days);return s.length>=2&&s[s.length-1].y_score_norm-s[0].y_score_norm>=amount}
 function allAbove(h,days,threshold){if(h.length<days)return false;return[...h].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,days).every(e=>e.y_score_norm>=threshold)}
+
+// ─── UI Helpers ───────────────────────────────────────────────────────────────
+export function scoreColor(wellness) {
+  if (wellness >= 85) return '#1B5E3B'
+  if (wellness >= 67) return '#2471A3'
+  if (wellness >= 50) return '#D4740A'
+  if (wellness >= 33) return '#C0392B'
+  return '#922B21'
+}
