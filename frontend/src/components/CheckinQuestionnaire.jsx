@@ -13,9 +13,7 @@ export function CheckinQuestionnaire({ onComplete, onBack }) {
 
   const currentOptions = q.scale === 5 ? OPTIONS_5 : OPTIONS_3
 
-  const choose = (val) => {
-    setSelected(val)
-  }
+  const choose = (val) => setSelected(val)
 
   const next = () => {
     if (selected === null && answers[q.id] === undefined) return
@@ -41,7 +39,6 @@ export function CheckinQuestionnaire({ onComplete, onBack }) {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--cream)', display: 'flex', flexDirection: 'column' }}>
-      {/* Top bar */}
       <div style={{ background: 'var(--white)', borderBottom: '1px solid var(--border)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
         <button className="btn-ghost" onClick={back} style={{ fontSize: 18, padding: '6px 10px' }}>←</button>
         <div style={{ flex: 1 }}>
@@ -59,7 +56,6 @@ export function CheckinQuestionnaire({ onComplete, onBack }) {
         </div>
       </div>
 
-      {/* Main question view */}
       <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 16px 120px' }}>
         <div style={{ width: '100%', maxWidth: 560 }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: q.sectionColor + '18', color: q.sectionColor, padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', marginBottom: 20 }}>
@@ -104,7 +100,6 @@ export function CheckinQuestionnaire({ onComplete, onBack }) {
         </div>
       </div>
 
-      {/* Footer controls */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--white)', borderTop: '1px solid var(--border)', padding: '16px 20px', display: 'flex', justifyContent: 'center' }}>
         <div style={{ width: '100%', maxWidth: 560, display: 'flex', gap: 12 }}>
           <button className="btn-outline" onClick={back} style={{ padding: '13px 20px' }}>← Back</button>
@@ -115,6 +110,47 @@ export function CheckinQuestionnaire({ onComplete, onBack }) {
             style={{ flex: 1, padding: '13px', justifyContent: 'center', fontSize: 15, opacity: effectiveSelected === null ? 0.45 : 1 }}
           >
             {isLast ? 'Complete Assessment' : 'Next Question →'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Missing Intro Screen that caused the Rollup Error ────────────────────────
+export function QuestionnaireIntro({ onStart, onBack }) {
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--cream)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ maxWidth: 520, width: '100%' }}>
+        <button className="btn-ghost" onClick={onBack} style={{ marginBottom: 24, fontSize: 14 }}>← Back</button>
+
+        <div className="card" style={{ padding: 32 }}>
+          <div style={{ textAlign: 'center', marginBottom: 28 }}>
+            <p style={{ fontSize: 48, marginBottom: 12 }}>📋</p>
+            <h1 style={{ fontSize: 24, fontFamily: "'Lora', serif", marginBottom: 8 }}>The Mental Health Matrix</h1>
+            <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.7 }}>
+              A 30-question diagnostic combining the <strong>MHC-SF</strong> (Well-being) and <strong>PHQ-ADS</strong> (Distress).
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
+            {[
+              { icon: '⏱', title: 'Takes 3 minutes', desc: '30 validated questions, one at a time' },
+              { icon: '🔒', title: 'Completely private', desc: 'Your answers are mapped anonymously' },
+              { icon: '📊', title: '2D Assessment', desc: 'Identifies both your positive health and clinical distress' },
+            ].map(item => (
+              <div key={item.icon} style={{ display: 'flex', gap: 14, padding: '12px 16px', background: 'var(--cream)', borderRadius: 10 }}>
+                <span style={{ fontSize: 22, flexShrink: 0 }}>{item.icon}</span>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{item.title}</p>
+                  <p style={{ fontSize: 12, color: 'var(--muted)' }}>{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button className="btn-primary" onClick={onStart} style={{ width: '100%', padding: '14px', fontSize: 16, justifyContent: 'center' }}>
+            Begin Assessment →
           </button>
         </div>
       </div>
