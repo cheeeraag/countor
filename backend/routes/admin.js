@@ -1,39 +1,33 @@
 const router = require('express').Router()
 const pool   = require('../db')
-const { requireSuperAdmin, requireAdmin } = require('../middleware/roles')
-const { Parser } = require('json2csv').default || require('json2csv')
+const { requireAdmin } = require('../middleware/roles')
 
 // ── GET /api/admin/stats — overview numbers ───────────────────────────────
 router.get('/stats', requireAdmin, async (req, res) => {
   try {
-    // 1. Safely pull the ID (Your log proved req.user.orgId is correct!)
     const safeOrgId = req.query.orgId || req.user.orgId || req.user.org_id;
     
     if (req.user.role === 'org_admin' && !safeOrgId) {
       return res.status(400).json({ error: 'Missing Organization ID' });
     }
 
-    // 2. Standard filter for most queries
     const orgFilter = req.user.role === 'org_admin' ? `AND u.org_id = '${safeOrgId}'` : ''
     const today     = new Date().toISOString().split('T')[0]
-
-    // 3. THIS FIXES THE CRASH: Clean subquery filter specifically for the 7-day chart
     const daily7Filter = req.user.role === 'org_admin' 
       ? `AND c.user_id IN (SELECT id FROM users WHERE org_id = '${safeOrgId}')` 
       : ''
 
-    const [users, checkins, today_, avgScore, tierDist, daily7] = await Promise.all([
-      // total users
+    const [users, checkins, today_, avgScores, safetyAlerts, daily7] = await Promise.all([
       pool.query(`SELECT COUNT(*)::int AS count FROM users u WHERE u.role = 'user' ${orgFilter}`),
-      // total check-ins
       pool.query(`SELECT COUNT(*)::int AS count FROM checkins c JOIN users u ON u.id=c.user_id WHERE 1=1 ${orgFilter}`),
-      // today's check-ins
       pool.query(`SELECT COUNT(*)::int AS count FROM checkins c JOIN users u ON u.id=c.user_id WHERE c.date='${today}' ${orgFilter}`),
-      // average score
-      pool.query(`SELECT ROUND(AVG(c.score))::int AS avg FROM checkins c JOIN users u ON u.id=c.user_id WHERE 1=1 ${orgFilter}`),
-      // tier distribution
-      pool.query(`SELECT c.tier, COUNT(*)::int AS count FROM checkins c JOIN users u ON u.id=c.user_id WHERE 1=1 ${orgFilter} GROUP BY c.tier`),
-      // last 7 days activity (Crash resolved here!)
+      pool.query(`SELECT 
+        ROUND(AVG(c.y_score_norm))::int AS avg_wellbeing,
+        ROUND(AVG(c.x_score_norm))::int AS avg_distress 
+        FROM checkins c JOIN users u ON u.id=c.user_id WHERE 1=1 ${orgFilter}`),
+      pool.query(`SELECT COUNT(*)::int AS risk_count 
+        FROM checkins c JOIN users u ON u.id=c.user_id 
+        WHERE c.suicidality_flag = true AND c.date='${today}' ${orgFilter}`),
       pool.query(`
         SELECT
           TO_CHAR(d.day,'YYYY-MM-DD') AS date,
@@ -47,12 +41,13 @@ router.get('/stats', requireAdmin, async (req, res) => {
     ])
 
     res.json({
-      users:      users.rows[0].count,
-      checkins:   checkins.rows[0].count,
-      today:      today_.rows[0].count,
-      avgScore:   avgScore.rows[0].avg,
-      tierDist:   tierDist.rows,
-      daily7:     daily7.rows,
+      users:         users.rows[0].count,
+      checkins:      checkins.rows[0].count,
+      today:         today_.rows[0].count,
+      avgWellbeing:  avgScores.rows[0].avg_wellbeing || 0,
+      avgDistress:   avgScores.rows[0].avg_distress || 0,
+      safetyAlerts:  safetyAlerts.rows[0].risk_count || 0,
+      daily7:        daily7.rows,
     })
   } catch (err) {
     console.error(err)
@@ -62,7 +57,6 @@ router.get('/stats', requireAdmin, async (req, res) => {
 
 // ── GET /api/admin/users — users list ─────────────────────────────────────
 router.get('/users', requireAdmin, async (req, res) => {
-  // Pull the ID safely
   const safeOrgId = req.query.orgId || req.user.orgId || req.user.org_id;
   const orgFilter = req.user.role === 'org_admin' ? `AND u.org_id = $1` : ''
   const params    = req.user.role === 'org_admin' ? [safeOrgId] : []
@@ -72,10 +66,10 @@ router.get('/users', requireAdmin, async (req, res) => {
       SELECT
         u.id, u.name, u.email, u.role, u.org_id, u.created_at,
         o.name AS org_name,
-        COUNT(c.id)::int       AS checkin_count,
-        MAX(c.date)            AS last_checkin,
-        ROUND(AVG(c.score))::int AS avg_score,
-        (SELECT tier FROM checkins WHERE user_id=u.id ORDER BY date DESC LIMIT 1) AS last_tier
+        COUNT(c.id)::int                   AS checkin_count,
+        MAX(c.date)                        AS last_checkin,
+        ROUND(AVG(c.y_score_norm))::int     AS avg_wellbeing,
+        ROUND(AVG(c.x_score_norm))::int     AS avg_distress
       FROM users u
       LEFT JOIN organisations o ON o.id = u.org_id
       LEFT JOIN checkins c ON c.user_id = u.id
@@ -90,33 +84,26 @@ router.get('/users', requireAdmin, async (req, res) => {
   }
 })
 
-// ── GET /api/admin/export?orgId=&userId= — CSV download ──────────────────
+// ── GET /api/admin/export — CSV download ──────────────────────────────────
 router.get('/export', requireAdmin, async (req, res) => {
   const { orgId, userId } = req.query
-
   const safeOrgId = orgId || req.user.orgId || req.user.org_id;
-  
-  // Org admins can only export their own org
   const effectiveOrgId = req.user.role === 'org_admin' ? safeOrgId : orgId
 
   try {
     let query, params
-
     if (userId) {
-      // Single user export
-      query  = `SELECT u.name, u.email, o.name AS org, c.date, c.score, c.raw, c.depression, c.anxiety, c.tier, c.created_at
+      query  = `SELECT u.name, u.email, o.name AS org, c.date, c.y_score_raw, c.x_score_raw, c.y_score_norm, c.x_score_norm, c.suicidality_flag, c.created_at
                 FROM checkins c JOIN users u ON u.id=c.user_id LEFT JOIN organisations o ON o.id=u.org_id
                 WHERE u.id=$1 ORDER BY c.date DESC`
       params = [userId]
     } else if (effectiveOrgId) {
-      // Org export
-      query  = `SELECT u.name, u.email, o.name AS org, c.date, c.score, c.raw, c.depression, c.anxiety, c.tier, c.created_at
+      query  = `SELECT u.name, u.email, o.name AS org, c.date, c.y_score_raw, c.x_score_raw, c.y_score_norm, c.x_score_norm, c.suicidality_flag, c.created_at
                 FROM checkins c JOIN users u ON u.id=c.user_id LEFT JOIN organisations o ON o.id=u.org_id
                 WHERE u.org_id=$1 ORDER BY c.date DESC`
       params = [effectiveOrgId]
     } else if (req.user.role === 'superadmin') {
-      // All data
-      query  = `SELECT u.name, u.email, o.name AS org, c.date, c.score, c.raw, c.depression, c.anxiety, c.tier, c.created_at
+      query  = `SELECT u.name, u.email, o.name AS org, c.date, c.y_score_raw, c.x_score_raw, c.y_score_norm, c.x_score_norm, c.suicidality_flag, c.created_at
                 FROM checkins c JOIN users u ON u.id=c.user_id LEFT JOIN organisations o ON o.id=u.org_id
                 ORDER BY c.date DESC`
       params = []
@@ -125,15 +112,13 @@ router.get('/export', requireAdmin, async (req, res) => {
     }
 
     const { rows } = await pool.query(query, params)
-
-    // Build CSV manually (no extra deps)
-    const headers = ['Date','Name','Email','Organisation','Wellness Score','Raw Score','Depression','Anxiety','Tier','Timestamp']
+    const headers = ['Date','Name','Email','Organisation','MHC-SF Raw (Y)','PHQ-ADS Raw (X)','Well-being %','Distress %','Safety Flag','Timestamp']
     const csvRows = rows.map(r => [
       r.date, r.name || '', r.email, r.org || 'Individual',
-      r.score ?? '', r.raw ?? '', r.depression ?? '', r.anxiety ?? '', r.tier || '',
+      r.y_score_raw ?? '', r.x_score_raw ?? '', r.y_score_norm ?? '', r.x_score_norm ?? '', r.suicidality_flag ? 'YES' : 'NO',
       r.created_at ? new Date(r.created_at).toISOString() : ''
     ])
-    const csv = [headers, ...csvRows].map(r => r.map(v => `"${String(v).replace(/"/g,"'")}`).join(',')).join('\n')
+    const csv = [headers, ...csvRows].map(r => r.map(v => `"${String(v).replace(/"/g,"'")}"`).join(',')).join('\n')
 
     res.setHeader('Content-Type', 'text/csv')
     res.setHeader('Content-Disposition', `attachment; filename="countor_export.csv"`)
