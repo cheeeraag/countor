@@ -13,127 +13,34 @@ import { TherapistDirectory }           from './components/TherapistDirectory'
 import { StreaksPage }                  from './components/StreaksPage'
 import { AdminPage }                    from './components/AdminPage'
 import { TermsOfService }               from './components/TermsOfService' 
-import { PrivacyPolicy }                from './components/PrivacyPolicy'  
-import { Footer }                       from './components/Footer' 
-import { Spinner }                      from './components/UI'
+import { PrivacyPolicy }                from './components/PrivacyPolicy'
+import { Footer }                       from './components/Footer'
 
 function AppInner() {
-  // Added 'logout' here so we can use it in the pending/rejected screens
-  const { user, loading, saveCheckin, isAdmin, isPending, isRejected, logout } = useApp()
-  const [page,        setPage]        = useState('dashboard')
-  const [subPage,     setSubPage]     = useState(null)
-  const [lastResult,  setLastResult]  = useState(null)
-  const [pendingUser, setPendingUser] = useState(null)
+  const { user, saveCheckin, isAdmin } = useApp()
+  const [page, setPage]       = useState('dashboard') 
+  const [subPage, setSubPage] = useState(null)
+  const [lastResult, setLastResult] = useState(null)
 
-  // ── 1. Intercept Legal URLs immediately ────────────────────────────────────────
-  const currentPath = window.location.pathname;
-  if (currentPath === '/terms') {
-    return <TermsOfService />;
-  }
-  if (currentPath === '/privacy') {
-    return <PrivacyPolicy />;
-  }
+  if (!user) return <AuthScreen />
 
-  // ── Loading ──────────────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--cream)' }}>
-        <div style={{ textAlign:'center' }}>
-          <img 
-            src={logoImg} 
-            alt="Countor Logo" 
-            style={{ display: 'block', margin: '0 auto', width: '60px', height: 'auto', marginBottom: 16 }} 
-          />
-          <Spinner green size={28} />
-          <p style={{ fontFamily:"'Lora',serif", color:'var(--green)', fontSize:16, marginTop:14 }}>Loading Countor…</p>
-        </div>
-      </div>
-    )
-  }
-
-  // ── Not logged in ────────────────────────────────────────────────────────────
-  if (!user && !pendingUser) {
-    return <AuthScreen onPending={(u) => setPendingUser(u)} />
-  }
-
-  // ── Org admin pending approval ───────────────────────────────────────────────
-  if (isPending || pendingUser) {
-    return (
-      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--cream)', padding:20 }}>
-        <div style={{ maxWidth:440, textAlign:'center', width: '100%' }}>
-          <p style={{ fontSize:52, marginBottom:16 }}>⏳</p>
-          <h2 style={{ fontFamily:"'Lora',serif", fontSize:22, marginBottom:12 }}>Awaiting Approval</h2>
-          <p style={{ color:'var(--muted)', fontSize:14, lineHeight:1.7, marginBottom:24 }}>
-            Your organisation admin request is under review. You will be notified once the Countor team approves it.
-            <br /><br />
-            Questions? Email <strong>countor.corporatecommunications@gmail.com</strong>
-          </p>
-          <div style={{ background:'var(--green-pale)', border:'1px solid var(--green-pale2)', borderRadius:12, padding:'14px 18px', marginBottom: 20 }}>
-            <p style={{ fontSize:13, color:'var(--green)' }}>
-              Logged in as <strong>{user?.email || pendingUser?.email}</strong>
-            </p>
-          </div>
-          
-          {/* Added Log Out Button */}
-          <button 
-            className="btn-outline" 
-            onClick={() => { setPendingUser(null); logout(); }} 
-            style={{ width: '100%', justifyContent: 'center', padding: '12px' }}
-          >
-            Log Out
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // ── Org admin rejected ───────────────────────────────────────────────────────
-  if (isRejected) {
-    return (
-      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--cream)', padding:20 }}>
-        <div style={{ maxWidth:440, textAlign:'center', width: '100%' }}>
-          <p style={{ fontSize:52, marginBottom:16 }}>❌</p>
-          <h2 style={{ fontFamily:"'Lora',serif", fontSize:22, marginBottom:12 }}>Request Not Approved</h2>
-          <p style={{ color:'var(--muted)', fontSize:14, lineHeight:1.7, marginBottom: 24 }}>
-            Your organisation request was not approved. Contact <strong>countor.corporatecommunications@gmail.com</strong> for more information.
-          </p>
-          
-          {/* Added Log Out Button */}
-          <button 
-            className="btn-outline" 
-            onClick={logout} 
-            style={{ width: '100%', justifyContent: 'center', padding: '12px' }}
-          >
-            Log Out
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // ── Check-in flow (full screen, no nav) ──────────────────────────────────────
   if (page === 'checkin' && subPage === 'intro') {
-    return (
-      <QuestionnaireIntro
-        onStart={() => setSubPage('quiz')}
-        onBack={() => { setPage('dashboard'); setSubPage(null) }}
-      />
-    )
+    return <QuestionnaireIntro onStart={() => setSubPage('questions')} onBack={() => setPage('dashboard')} />
   }
 
-  if (page === 'checkin' && subPage === 'quiz') {
+  if (page === 'checkin' && subPage === 'questions') {
     return (
-      <CheckinQuestionnaire
-        onComplete={async (result, rawAnswers) => {
-          const entry = { ...result, score: result.wellness, answers: rawAnswers }
+      <CheckinQuestionnaire 
+        onComplete={async (answers) => {
           try {
-            await saveCheckin(entry)
+            // The backend calculates everything, we just send the 30 answers
+            const res = await saveCheckin({ answers })
+            setLastResult(res) // res now contains { checkin, recommendations }
+            setPage('results')
+            setSubPage(null)
           } catch (e) {
             console.error('Failed to save check-in:', e)
           }
-          setLastResult(entry)
-          setPage('results')
-          setSubPage(null)
         }}
         onBack={() => setSubPage('intro')}
       />
@@ -143,19 +50,15 @@ function AppInner() {
   const startCheckin = () => { setPage('checkin'); setSubPage('intro') }
 
   const navigate = (p) => {
-    if (p === 'admin' && !isAdmin) return  // block non-admins
+    if (p === 'admin' && !isAdmin) return
     setPage(p)
     setSubPage(null)
     if (p === 'checkin') setSubPage('intro')
   }
 
   return (
-    <div style={{ minHeight:'100vh', background:'var(--cream)', display: 'flex', flexDirection: 'column' }}>
-      
-      {/* Top Navigation */}
+    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', background:'var(--cream)' }}>
       <TopNav currentPage={page} onNavigate={navigate} />
-      
-      {/* Main Page Content (flex: 1 keeps footer at the bottom) */}
       <main style={{ maxWidth:760, margin:'0 auto', width: '100%', flex: 1 }}>
         {page === 'dashboard'  && <Dashboard onStartCheckin={startCheckin} />}
         {page === 'community'  && <CommunityPage />}
@@ -170,10 +73,7 @@ function AppInner() {
           />
         )}
       </main>
-
-      {/* Global Footer */}
       <Footer />
-      
     </div>
   )
 }
