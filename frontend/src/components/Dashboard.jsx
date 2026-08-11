@@ -1,16 +1,14 @@
 import { useState } from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts'
 import { useApp } from '../context/AppContext'
-import { TIERS, calcStreak } from '../data/recommendations'
+import { calcStreak } from '../data/recommendations'
 import { ScoreCircle, PageShell, SectionHeader, EmptyState } from './UI'
 
 export function Dashboard({ onStartCheckin }) {
   const { user, history } = useApp()
   const [period, setPeriod] = useState('week')
 
-  // FIX: Use local time (en-CA guarantees the YYYY-MM-DD format)
   const today      = new Date().toLocaleDateString('en-CA')
-  // FIX: Slice the DB timestamp to compare strictly by the date portion
   const todayEntry = history.find(h => h.date?.substring(0, 10) === today)
   
   const streak     = calcStreak(history)
@@ -20,33 +18,30 @@ export function Dashboard({ onStartCheckin }) {
   const getAvg = (days) => {
     const cut = new Date(); cut.setDate(cut.getDate() - days)
     const sl  = history.filter(h => new Date(h.date) >= cut)
-    return sl.length ? Math.round(sl.reduce((s, h) => s + (h.score ?? 0), 0) / sl.length) : null
+    return sl.length ? Math.round(sl.reduce((s, h) => s + (h.y_score_norm ?? 0), 0) / sl.length) : null
   }
 
   const chartData = () => {
     const days = period === 'week' ? 7 : period === 'month' ? 30 : 90
     return Array.from({ length: days }, (_, i) => {
       const d = new Date(); d.setDate(d.getDate() - (days - 1 - i))
-      
-      // FIX: Use local time and slice DB timestamp for accurate chart points
       const ds = d.toLocaleDateString('en-CA')
       const e  = history.find(h => h.date?.substring(0, 10) === ds)
       
       return {
         label: d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
-        score: e ? (e.score ?? null) : null,
+        score: e ? (e.y_score_norm ?? null) : null,
       }
     })
   }
 
   const weekAvg  = getAvg(7)
   const monthAvg = getAvg(30)
-  const tierInfo = todayEntry ? TIERS[todayEntry.tier] : null
-  const todayScore = todayEntry ? (todayEntry.score ?? 0) : null
+  const todayWellbeing = todayEntry ? (todayEntry.y_score_norm ?? 0) : null
+  const todayDistress  = todayEntry ? (todayEntry.x_score_norm ?? 0) : null
 
   return (
     <PageShell>
-      {/* Greeting */}
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 24, marginBottom: 4 }}>
           {greeting}, {user?.name?.split(' ')[0]} {streak > 0 ? '🔥' : '👋'}
@@ -56,7 +51,6 @@ export function Dashboard({ onStartCheckin }) {
         </p>
       </div>
 
-      {/* Today card or CTA */}
       {todayEntry ? (
         <div className="card fade-in" style={{
           background: 'linear-gradient(135deg, #1B5E3B 0%, #2D7A50 100%)',
@@ -64,29 +58,21 @@ export function Dashboard({ onStartCheckin }) {
           display: 'flex', alignItems: 'center', gap: 20,
           flexWrap: 'wrap', padding: 24,
         }}>
-          <ScoreCircle score={todayScore} size={90} />
+          <ScoreCircle score={todayWellbeing} size={90} />
           <div style={{ flex: 1 }}>
             <p style={{ color: 'rgba(255,255,255,.65)', fontSize: 11, fontWeight: 700, letterSpacing: .5, textTransform: 'uppercase' }}>
-              Today's Wellness Score
+              Well-being Index
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
               <span style={{ color: '#fff', fontSize: 24, fontWeight: 700, fontFamily: "'Lora',serif" }}>
-                {todayScore}/100
-              </span>
-              <span style={{ background: 'rgba(255,255,255,.2)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20 }}>
-                {tierInfo?.label}
+                {todayWellbeing}%
               </span>
             </div>
-            {todayEntry.depression !== undefined && todayEntry.depression !== null && (
-              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-                <span style={{ color: 'rgba(255,255,255,.75)', fontSize: 12 }}>
-                  Depression: {todayEntry.depression}/18
-                </span>
-                <span style={{ color: 'rgba(255,255,255,.75)', fontSize: 12 }}>
-                  Anxiety: {todayEntry.anxiety}/12
-                </span>
-              </div>
-            )}
+            <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+              <span style={{ color: '#FFCDCD', fontSize: 12, fontWeight: 600 }}>
+                Distress Index: {todayDistress}%
+              </span>
+            </div>
           </div>
           <button
             className="btn-outline"
@@ -104,7 +90,7 @@ export function Dashboard({ onStartCheckin }) {
           <p style={{ fontSize: 36, marginBottom: 12 }}>📋</p>
           <h2 style={{ fontSize: 18, marginBottom: 8, color: 'var(--green)' }}>No assessment today</h2>
           <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 20, maxWidth: 340, margin: '0 auto 20px' }}>
-            Take the PHQ-9/GAD-7 based check-in — it only takes 2 minutes.
+            Take the 2D matrix check-in to map your well-being and distress levels.
           </p>
           <button className="btn-primary" onClick={onStartCheckin} style={{ fontSize: 15, padding: '13px 28px' }}>
             Start Today's Check-in →
@@ -112,12 +98,11 @@ export function Dashboard({ onStartCheckin }) {
         </div>
       )}
 
-      {/* Stats row */}
       <div className="grid-3" style={{ marginBottom: 20 }}>
         {[
-          { label: '7-day avg',        value: weekAvg  ? `${weekAvg}/100`  : '—', icon: '📅', sub: 'past week' },
-          { label: '30-day avg',       value: monthAvg ? `${monthAvg}/100` : '—', icon: '📆', sub: 'past month' },
-          { label: 'Check-in streak',  value: streak,                              icon: '🔥', sub: streak === 1 ? 'day' : 'days in a row' },
+          { label: '7-day Well-being', value: weekAvg  ? `${weekAvg}%`  : '—', icon: '📅', sub: 'past week' },
+          { label: '30-day Well-being', value: monthAvg ? `${monthAvg}%` : '—', icon: '📆', sub: 'past month' },
+          { label: 'Check-in streak',   value: streak,                              icon: '🔥', sub: streak === 1 ? 'day' : 'days in a row' },
         ].map(s => (
           <div key={s.label} className="card" style={{ textAlign: 'center', padding: '16px 12px' }}>
             <p style={{ fontSize: 20, marginBottom: 6 }}>{s.icon}</p>
@@ -130,11 +115,10 @@ export function Dashboard({ onStartCheckin }) {
         ))}
       </div>
 
-      {/* Trend chart */}
       {history.length > 0 && (
         <div className="card" style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ fontFamily: "'Lora',serif", fontSize: 16, fontWeight: 600 }}>📈 Wellness Trend</h3>
+            <h3 style={{ fontFamily: "'Lora',serif", fontSize: 16, fontWeight: 600 }}>📈 Well-being Trend</h3>
             <div style={{ display: 'flex', gap: 4 }}>
               {[['week','7D'],['month','30D'],['quarter','90D']].map(([p,l]) => (
                 <button key={p} onClick={() => setPeriod(p)} style={{
@@ -142,7 +126,6 @@ export function Dashboard({ onStartCheckin }) {
                   cursor: 'pointer', border: '1px solid var(--border)',
                   background: period === p ? 'var(--green)' : 'transparent',
                   color:      period === p ? '#fff' : 'var(--muted)',
-                  transition: 'all .2s',
                 }}>{l}</button>
               ))}
             </div>
@@ -156,87 +139,37 @@ export function Dashboard({ onStartCheckin }) {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#E8F5EE" vertical={false} />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 11, fill: '#6B8069' }}
-                tickLine={false} axisLine={false}
-                interval={period === 'week' ? 0 : period === 'month' ? 6 : 13}
-              />
-              <YAxis
-                domain={[0, 100]}
-                tick={{ fontSize: 11, fill: '#6B8069' }}
-                tickLine={false} axisLine={false}
-                ticks={[0, 25, 50, 75, 100]}
-              />
-              <ReferenceLine y={70} stroke="#1B5E3B" strokeDasharray="4 4" strokeOpacity={.4} />
-              <Tooltip
-                contentStyle={{ background: '#fff', border: '1px solid #DCE8DC', borderRadius: 10, fontSize: 13, fontFamily: 'Nunito,sans-serif' }}
-                formatter={v => v ? [`${v}/100`, 'Score'] : ['No data', 'Score']}
-              />
-              <Area
-                type="monotone" dataKey="score"
-                stroke="#1B5E3B" strokeWidth={2}
-                fill="url(#gScore)" connectNulls={false}
-                dot={{ fill: '#1B5E3B', r: 3, strokeWidth: 0 }}
-                activeDot={{ r: 5 }}
-              />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6B8069' }} tickLine={false} axisLine={false} interval={period === 'week' ? 0 : period === 'month' ? 6 : 13} />
+              <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#6B8069' }} tickLine={false} axisLine={false} ticks={[0, 25, 50, 75, 100]} />
+              <Tooltip contentStyle={{ background: '#fff', border: '1px solid #DCE8DC', borderRadius: 10, fontSize: 13 }} formatter={v => v ? [`${v}%`, 'Well-being'] : ['No data', 'Well-being']} />
+              <Area type="monotone" dataKey="score" stroke="#1B5E3B" strokeWidth={2} fill="url(#gScore)" connectNulls={false} dot={{ fill: '#1B5E3B', r: 3, strokeWidth: 0 }} activeDot={{ r: 5 }} />
             </AreaChart>
           </ResponsiveContainer>
-          <p style={{ fontSize: 11, color: 'var(--muted)', textAlign: 'right', marginTop: 4 }}>
-            — Dashed line at 70 = Healthy threshold
-          </p>
         </div>
       )}
 
-      {/* Recent history */}
       {history.length > 0 ? (
         <div className="card">
-          <SectionHeader
-            icon="🗓"
-            title="Recent Check-ins"
-            subtitle={`${history.length} total entr${history.length === 1 ? 'y' : 'ies'}`}
-          />
+          <SectionHeader icon="🗓" title="Recent Check-ins" subtitle={`${history.length} total entr${history.length === 1 ? 'y' : 'ies'}`} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[...history].reverse().slice(0, 7).map(h => {
-              const t = TIERS[h.tier] || TIERS.improvement
-              const s = h.score ?? 0
-              return (
-                <div key={h.date} style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '10px 14px', background: 'var(--cream)', borderRadius: 10,
-                }}>
-                  <div style={{
-                    width: 46, height: 46, borderRadius: 12,
-                    background: t.bg, display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', flexShrink: 0,
-                  }}>
-                    <span style={{ fontSize: 16, fontWeight: 700, color: t.color, fontFamily: "'Lora',serif" }}>{s}</span>
+            {[...history].reverse().slice(0, 7).map(h => (
+                <div key={h.date} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--cream)', borderRadius: 10 }}>
+                  <div style={{ width: 46, height: 46, borderRadius: 12, background: 'var(--green-pale)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--green)', fontFamily: "'Lora',serif" }}>{h.y_score_norm}%</span>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
                       {new Date(h.date).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}
                     </p>
-                    {h.depression != null && (
-                      <p style={{ fontSize: 11, color: 'var(--muted)' }}>
-                        Depression {h.depression}/18 · Anxiety {h.anxiety}/12
-                      </p>
-                    )}
+                    <p style={{ fontSize: 11, color: 'var(--muted)' }}>Distress: {h.x_score_norm}%</p>
                   </div>
-                  <span className="badge" style={{ background: t.bg, color: t.color, flexShrink: 0 }}>
-                    {t.emoji} {t.label}
-                  </span>
                 </div>
-              )
-            })}
+            ))}
           </div>
         </div>
       ) : (
         <div className="card">
-          <EmptyState
-            emoji="📭"
-            title="No history yet"
-            desc="Complete your first check-in to start tracking your wellness journey."
-          />
+          <EmptyState emoji="📭" title="No history yet" desc="Complete your first check-in to start tracking your wellness journey." />
         </div>
       )}
     </PageShell>
