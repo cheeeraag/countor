@@ -4,6 +4,8 @@ const { requireUser } = require('../middleware/roles')
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
 const VOICE_MAX_BYTES = 15 * 1024 * 1024
+const GEMINI_MAX_ATTEMPTS = 3
+const GEMINI_RETRY_DELAYS_MS = [1000, 2500]
 
 const TRIAGE_SYSTEM_PROMPT = `You are Countor's structured mental-wellness triage scorer.
 
@@ -39,34 +41,64 @@ function getGeminiModel() {
   return process.env.GEMINI_MODEL || 'gemini-2.5-flash'
 }
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
 async function callGemini({ model = getGeminiModel(), contents, generationConfig }) {
   const key = getGeminiKey()
   if (!key) throw new Error('GEMINI_API_KEY is not configured')
 
-  const response = await fetch(
-    `${GEMINI_API_URL}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents, generationConfig }),
-    }
-  )
+  let lastError
 
-  const payload = await response.json().catch(() => ({}))
-  if (!response.ok) {
-    console.error('Gemini API error:', JSON.stringify(payload))
-    const apiMessage = payload?.error?.message
-    throw new Error(apiMessage ? `Gemini request failed: ${apiMessage}` : 'Gemini request failed')
+  for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt++) {
+    try {
+      const response = await fetch(
+        `${GEMINI_API_URL}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents, generationConfig }),
+          signal: AbortSignal.timeout(30000),
+        }
+      )
+
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        console.error('Gemini API error:', JSON.stringify(payload))
+        const apiMessage = payload?.error?.message
+        throw new Error(apiMessage ? `Gemini request failed: ${apiMessage}` : 'Gemini request failed')
+      }
+
+      const text = payload?.candidates?.[0]?.content?.parts
+        ?.filter(part => typeof part.text === 'string')
+        .map(part => part.text)
+        .join('')
+        .trim()
+
+      if (!text) throw new Error('Gemini returned no text')
+      return text
+    } catch (err) {
+      lastError = err
+      const retryable = err?.cause?.code === 'UND_ERR_CONNECT_TIMEOUT' ||
+        err?.code === 'UND_ERR_CONNECT_TIMEOUT' ||
+        err?.name === 'AbortError' ||
+        err?.code === 'ETIMEDOUT' ||
+        err?.code === 'ECONNRESET' ||
+        err?.code === 'ECONNREFUSED'
+
+      if (!retryable || attempt === GEMINI_MAX_ATTEMPTS) break
+
+      console.warn(`Gemini network attempt ${attempt}/${GEMINI_MAX_ATTEMPTS} failed: ${err.message}; retrying...`)
+      await sleep(GEMINI_RETRY_DELAYS_MS[attempt - 1] || 2500)
+    }
   }
 
-  const text = payload?.candidates?.[0]?.content?.parts
-    ?.filter(part => typeof part.text === 'string')
-    .map(part => part.text)
-    .join('')
-    .trim()
+  if (lastError?.cause?.code === 'UND_ERR_CONNECT_TIMEOUT' || lastError?.code === 'UND_ERR_CONNECT_TIMEOUT') {
+    throw new Error('Could not connect to Gemini from the backend. Railway network connection to Google timed out after multiple attempts.')
+  }
 
-  if (!text) throw new Error('Gemini returned no text')
-  return text
+  throw lastError || new Error('Gemini request failed')
 }
 
 async function transcribeVoice(audioBase64, mimeType) {
@@ -74,13 +106,16 @@ async function transcribeVoice(audioBase64, mimeType) {
   if (!buffer.length) throw new Error('Empty audio')
   if (buffer.length > VOICE_MAX_BYTES) throw new Error('Audio file is too large')
 
+  // Gemini expects an IANA MIME type; browser MediaRecorder may append codec parameters.
+  const normalizedMimeType = (mimeType || 'audio/webm').split(';')[0].trim().toLowerCase()
+
   return callGemini({
     contents: [{
       role: 'user',
       parts: [
         {
           inlineData: {
-            mimeType: mimeType || 'audio/webm',
+            mimeType: normalizedMimeType,
             data: audioBase64,
           },
         },
