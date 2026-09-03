@@ -6,6 +6,7 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
 const VOICE_MAX_BYTES = 15 * 1024 * 1024
 const GEMINI_MAX_ATTEMPTS = 3
 const GEMINI_RETRY_DELAYS_MS = [1000, 2500]
+const GEMINI_REQUEST_TIMEOUT_MS = 60000
 
 const TRIAGE_SYSTEM_PROMPT = `You are Countor's structured mental-wellness triage scorer.
 
@@ -34,11 +35,12 @@ function clamp(n, min, max) {
 }
 
 function getGeminiKey() {
-  return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
+  const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
+  return key?.trim()
 }
 
 function getGeminiModel() {
-  return process.env.GEMINI_MODEL || 'gemini-3.6-flash'
+  return process.env.GEMINI_MODEL?.trim() || 'gemini-3.6-flash'
 }
 
 function sleep(ms) {
@@ -54,12 +56,15 @@ async function callGemini({ model = getGeminiModel(), contents, generationConfig
   for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt++) {
     try {
       const response = await fetch(
-        `${GEMINI_API_URL}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`,
+        `${GEMINI_API_URL}/${encodeURIComponent(model)}:generateContent`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': key,
+          },
           body: JSON.stringify({ contents, generationConfig }),
-          signal: AbortSignal.timeout(30000),
+          signal: AbortSignal.timeout(GEMINI_REQUEST_TIMEOUT_MS),
         }
       )
 
@@ -83,9 +88,11 @@ async function callGemini({ model = getGeminiModel(), contents, generationConfig
       const retryable = err?.cause?.code === 'UND_ERR_CONNECT_TIMEOUT' ||
         err?.code === 'UND_ERR_CONNECT_TIMEOUT' ||
         err?.name === 'AbortError' ||
+        err?.name === 'TimeoutError' ||
         err?.code === 'ETIMEDOUT' ||
         err?.code === 'ECONNRESET' ||
-        err?.code === 'ECONNREFUSED'
+        err?.code === 'ECONNREFUSED' ||
+        err?.code === 'EAI_AGAIN'
 
       if (!retryable || attempt === GEMINI_MAX_ATTEMPTS) break
 
@@ -96,6 +103,10 @@ async function callGemini({ model = getGeminiModel(), contents, generationConfig
 
   if (lastError?.cause?.code === 'UND_ERR_CONNECT_TIMEOUT' || lastError?.code === 'UND_ERR_CONNECT_TIMEOUT') {
     throw new Error('Could not connect to Gemini from the backend. Railway network connection to Google timed out after multiple attempts.')
+  }
+
+  if (lastError?.name === 'TimeoutError' || lastError?.name === 'AbortError') {
+    throw new Error('Gemini request timed out after 60 seconds. Please try again.')
   }
 
   throw lastError || new Error('Gemini request failed')
@@ -124,7 +135,6 @@ async function transcribeVoice(audioBase64, mimeType) {
         },
       ],
     }],
-    generationConfig: { temperature: 0 },
   })
 }
 
@@ -135,7 +145,6 @@ async function scoreTranscript(transcript) {
       parts: [{ text: `${TRIAGE_SYSTEM_PROMPT}\n\nTranscript:\n${transcript}` }],
     }],
     generationConfig: {
-      temperature: 0,
       responseMimeType: 'application/json',
       responseSchema: {
         type: 'OBJECT',
