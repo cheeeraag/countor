@@ -2,7 +2,7 @@ const router = require('express').Router()
 const pool = require('../db')
 const { requireUser } = require('../middleware/roles')
 
-const OPENAI_API_URL = 'https://api.openai.com/v1'
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
 const VOICE_MAX_BYTES = 15 * 1024 * 1024
 
 const TRIAGE_SYSTEM_PROMPT = `You are Countor's structured mental-wellness triage scorer.
@@ -31,84 +31,116 @@ function clamp(n, min, max) {
   return Math.max(min, Math.min(max, Number(n)))
 }
 
-function getOpenAIKey() {
-  return process.env.OPENAI_API_KEY || process.env.OPENAI_API_TOKEN
+function getGeminiKey() {
+  return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
+}
+
+function getGeminiModel() {
+  return process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+}
+
+async function callGemini({ model = getGeminiModel(), contents, generationConfig }) {
+  const key = getGeminiKey()
+  if (!key) throw new Error('GEMINI_API_KEY is not configured')
+
+  const response = await fetch(
+    `${GEMINI_API_URL}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents, generationConfig }),
+    }
+  )
+
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    console.error('Gemini API error:', payload)
+    throw new Error('Gemini request failed')
+  }
+
+  const text = payload?.candidates?.[0]?.content?.parts
+    ?.filter(part => typeof part.text === 'string')
+    .map(part => part.text)
+    .join('')
+    .trim()
+
+  if (!text) throw new Error('Gemini returned no text')
+  return text
 }
 
 async function transcribeVoice(audioBase64, mimeType) {
-  const key = getOpenAIKey()
-  if (!key) throw new Error('OPENAI_API_KEY is not configured')
-
   const buffer = Buffer.from(audioBase64, 'base64')
   if (!buffer.length) throw new Error('Empty audio')
   if (buffer.length > VOICE_MAX_BYTES) throw new Error('Audio file is too large')
 
-  const extension = (mimeType || '').includes('mp4') ? 'mp4' : 'webm'
-  const form = new FormData()
-  form.append('file', new Blob([buffer], { type: mimeType || 'audio/webm' }), `countor-checkin.${extension}`)
-  form.append('model', process.env.OPENAI_TRANSCRIPTION_MODEL || 'whisper-1')
-  form.append('response_format', 'text')
-  form.append('language', 'en')
-
-  const response = await fetch(`${OPENAI_API_URL}/audio/transcriptions`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${key}` },
-    body: form,
+  const transcript = await callGemini({
+    contents: [{
+      role: 'user',
+      parts: [
+        {
+          inlineData: {
+            mimeType: mimeType || 'audio/webm',
+            data: audioBase64,
+          },
+        },
+        {
+          text: 'Transcribe this audio exactly as spoken. Return only the transcript text. Do not summarize, interpret, diagnose, or add commentary.',
+        },
+      ],
+    }],
+    generationConfig: {
+      temperature: 0,
+    },
   })
 
-  const text = await response.text()
-  if (!response.ok) {
-    console.error('OpenAI transcription error:', text)
-    throw new Error('Voice transcription failed')
-  }
-  return text.trim()
+  return transcript
 }
 
 async function scoreTranscript(transcript) {
-  const key = getOpenAIKey()
-  if (!key) throw new Error('OPENAI_API_KEY is not configured')
-  if (!transcript || transcript.length < 2) throw new Error('Transcript is empty')
-
-  const response = await fetch(`${OPENAI_API_URL}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_TRIAGE_MODEL || 'gpt-4o-mini',
+  const text = await callGemini({
+    contents: [{
+      role: 'user',
+      parts: [{
+        text: `${TRIAGE_SYSTEM_PROMPT}\n\nTranscript:\n${transcript}`,
+      }],
+    }],
+    generationConfig: {
       temperature: 0,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: TRIAGE_SYSTEM_PROMPT },
-        { role: 'user', content: `Transcript:\n${transcript}` },
-      ],
-    }),
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'object',
+        properties: {
+          y_score_raw: {
+            type: 'number',
+            description: 'Estimated positive mental wellbeing score on the MHC-SF raw range 0-70.',
+          },
+          x_score_raw: {
+            type: 'number',
+            description: 'Estimated psychological distress score on the PHQ-ADS raw range 0-48.',
+          },
+        },
+        required: ['y_score_raw', 'x_score_raw'],
+      },
+    },
   })
-
-  const payload = await response.json().catch(() => ({}))
-  if (!response.ok) {
-    console.error('OpenAI triage error:', payload)
-    throw new Error('Voice scoring failed')
-  }
-
-  const content = payload?.choices?.[0]?.message?.content
-  if (!content) throw new Error('Voice scoring returned no result')
 
   let parsed
   try {
-    parsed = JSON.parse(content)
+    parsed = JSON.parse(text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim())
   } catch {
-    throw new Error('Voice scoring returned invalid JSON')
+    throw new Error('Gemini scoring returned invalid JSON')
   }
 
-  const y_score_raw = Math.round(clamp(parsed.y_score_raw, 0, 70))
-  const x_score_raw = Math.round(clamp(parsed.x_score_raw, 0, 48))
-  if (!Number.isFinite(y_score_raw) || !Number.isFinite(x_score_raw)) {
-    throw new Error('Voice scoring returned invalid scores')
+  const y = Number(parsed.y_score_raw)
+  const x = Number(parsed.x_score_raw)
+  if (!Number.isFinite(y) || !Number.isFinite(x)) {
+    throw new Error('Gemini scoring returned invalid scores')
   }
 
-  return { y_score_raw, x_score_raw }
+  return {
+    y_score_raw: Math.round(clamp(y, 0, 70)),
+    x_score_raw: Math.round(clamp(x, 0, 48)),
+  }
 }
 
 function scoreQuestionnaire(answers) {
@@ -169,8 +201,7 @@ router.post('/', requireUser, async (req, res) => {
 
       const { y_score_raw, x_score_raw } = await scoreTranscript(transcript)
 
-      // Keep the existing safety field conservative for the voice path. If explicit self-harm
-      // language is present, route the result through the existing crisis UI rather than ignoring it.
+      // Conservative explicit-language safety flag. Raw transcript is not persisted.
       const safetyFlag = /\b(kill myself|killing myself|suicide|suicidal|self[- ]?harm|hurt myself|harm myself|better off dead|want to die|wish i were dead)\b/i.test(transcript)
 
       return res.json(await saveAndRecommend({
