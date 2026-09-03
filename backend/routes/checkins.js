@@ -38,7 +38,7 @@ function getGeminiKey() {
 }
 
 function getGeminiModel() {
-  return process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+  return process.env.GEMINI_MODEL || 'gemini-3.6-flash'
 }
 
 function sleep(ms) {
