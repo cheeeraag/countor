@@ -47,14 +47,24 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-async function callGemini({ model = getGeminiModel(), contents, generationConfig }) {
+function geminiErrorCode(err) {
+  return err?.cause?.code || err?.code || err?.name || 'unknown'
+}
+
+async function callGemini({ model = getGeminiModel(), contents, generationConfig, operation = 'request' }) {
   const key = getGeminiKey()
   if (!key) throw new Error('GEMINI_API_KEY is not configured')
 
+  const requestBody = JSON.stringify({ contents, generationConfig })
   let lastError
 
+  console.log(`[Gemini] ${operation} start model=${model} requestBytes=${Buffer.byteLength(requestBody)} keyConfigured=${Boolean(key)}`)
+
   for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt++) {
+    const startedAt = Date.now()
     try {
+      console.log(`[Gemini] ${operation} attempt=${attempt}/${GEMINI_MAX_ATTEMPTS}`)
+
       const response = await fetch(
         `${GEMINI_API_URL}/${encodeURIComponent(model)}:generateContent`,
         {
@@ -63,14 +73,17 @@ async function callGemini({ model = getGeminiModel(), contents, generationConfig
             'Content-Type': 'application/json',
             'x-goog-api-key': key,
           },
-          body: JSON.stringify({ contents, generationConfig }),
+          body: requestBody,
           signal: AbortSignal.timeout(GEMINI_REQUEST_TIMEOUT_MS),
         }
       )
 
+      const elapsedMs = Date.now() - startedAt
       const payload = await response.json().catch(() => ({}))
+      console.log(`[Gemini] ${operation} response status=${response.status} elapsedMs=${elapsedMs}`)
+
       if (!response.ok) {
-        console.error('Gemini API error:', JSON.stringify(payload))
+        console.error(`[Gemini] ${operation} API error:`, JSON.stringify(payload))
         const apiMessage = payload?.error?.message
         throw new Error(apiMessage ? `Gemini request failed: ${apiMessage}` : 'Gemini request failed')
       }
@@ -82,9 +95,13 @@ async function callGemini({ model = getGeminiModel(), contents, generationConfig
         .trim()
 
       if (!text) throw new Error('Gemini returned no text')
+
+      console.log(`[Gemini] ${operation} success elapsedMs=${Date.now() - startedAt} outputChars=${text.length}`)
       return text
     } catch (err) {
       lastError = err
+      const elapsedMs = Date.now() - startedAt
+      const code = geminiErrorCode(err)
       const retryable = err?.cause?.code === 'UND_ERR_CONNECT_TIMEOUT' ||
         err?.code === 'UND_ERR_CONNECT_TIMEOUT' ||
         err?.name === 'AbortError' ||
@@ -94,9 +111,11 @@ async function callGemini({ model = getGeminiModel(), contents, generationConfig
         err?.code === 'ECONNREFUSED' ||
         err?.code === 'EAI_AGAIN'
 
+      console.error(`[Gemini] ${operation} failed attempt=${attempt}/${GEMINI_MAX_ATTEMPTS} elapsedMs=${elapsedMs} code=${code} message=${err.message}`)
+
       if (!retryable || attempt === GEMINI_MAX_ATTEMPTS) break
 
-      console.warn(`Gemini network attempt ${attempt}/${GEMINI_MAX_ATTEMPTS} failed: ${err.message}; retrying...`)
+      console.warn(`[Gemini] ${operation} retrying after ${GEMINI_RETRY_DELAYS_MS[attempt - 1] || 2500}ms`)
       await sleep(GEMINI_RETRY_DELAYS_MS[attempt - 1] || 2500)
     }
   }
@@ -106,7 +125,7 @@ async function callGemini({ model = getGeminiModel(), contents, generationConfig
   }
 
   if (lastError?.name === 'TimeoutError' || lastError?.name === 'AbortError') {
-    throw new Error('Gemini request timed out after 60 seconds. Please try again.')
+    throw new Error(`Gemini ${operation} timed out after ${GEMINI_REQUEST_TIMEOUT_MS / 1000} seconds. Please try again.`)
   }
 
   throw lastError || new Error('Gemini request failed')
@@ -120,7 +139,10 @@ async function transcribeVoice(audioBase64, mimeType) {
   // Gemini expects an IANA MIME type; browser MediaRecorder may append codec parameters.
   const normalizedMimeType = (mimeType || 'audio/webm').split(';')[0].trim().toLowerCase()
 
-  return callGemini({
+  console.log(`[Gemini] Transcription input audioBytes=${buffer.length} mimeType=${normalizedMimeType}`)
+  const startedAt = Date.now()
+  const result = await callGemini({
+    operation: 'transcription',
     contents: [{
       role: 'user',
       parts: [
@@ -136,10 +158,15 @@ async function transcribeVoice(audioBase64, mimeType) {
       ],
     }],
   })
+  console.log(`[Gemini] Transcription completed elapsedMs=${Date.now() - startedAt} transcriptChars=${result.length}`)
+  return result
 }
 
 async function scoreTranscript(transcript) {
+  console.log(`[Gemini] Scoring input transcriptChars=${transcript.length}`)
+  const startedAt = Date.now()
   const text = await callGemini({
+    operation: 'scoring',
     contents: [{
       role: 'user',
       parts: [{ text: `${TRIAGE_SYSTEM_PROMPT}\n\nTranscript:\n${transcript}` }],
@@ -162,6 +189,7 @@ async function scoreTranscript(transcript) {
       },
     },
   })
+  console.log(`[Gemini] Scoring completed elapsedMs=${Date.now() - startedAt}`)
 
   let parsed
   try {
