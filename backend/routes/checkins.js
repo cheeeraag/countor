@@ -6,7 +6,7 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
 const VOICE_MAX_BYTES = 15 * 1024 * 1024
 const GEMINI_MAX_ATTEMPTS = 3
 const GEMINI_RETRY_DELAYS_MS = [1000, 2500]
-const GEMINI_REQUEST_TIMEOUT_MS = 60000
+const GEMINI_REQUEST_TIMEOUT_MS = 180000
 
 const TRIAGE_SYSTEM_PROMPT = `You are Countor's structured mental-wellness assessment scorer.
 
