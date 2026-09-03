@@ -80,10 +80,6 @@ export function VoiceAssessment({ onComplete, onBack }) {
           setError('No audio was captured. Please try again.')
           return
         }
-        if (seconds < 2) {
-          setError('Please speak for at least a few seconds before stopping.')
-          return
-        }
 
         setProcessing(true)
         try {
