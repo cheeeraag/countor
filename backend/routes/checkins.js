@@ -54,8 +54,9 @@ async function callGemini({ model = getGeminiModel(), contents, generationConfig
 
   const payload = await response.json().catch(() => ({}))
   if (!response.ok) {
-    console.error('Gemini API error:', payload)
-    throw new Error('Gemini request failed')
+    console.error('Gemini API error:', JSON.stringify(payload))
+    const apiMessage = payload?.error?.message
+    throw new Error(apiMessage ? `Gemini request failed: ${apiMessage}` : 'Gemini request failed')
   }
 
   const text = payload?.candidates?.[0]?.content?.parts
@@ -73,7 +74,7 @@ async function transcribeVoice(audioBase64, mimeType) {
   if (!buffer.length) throw new Error('Empty audio')
   if (buffer.length > VOICE_MAX_BYTES) throw new Error('Audio file is too large')
 
-  const transcript = await callGemini({
+  return callGemini({
     contents: [{
       role: 'user',
       parts: [
@@ -88,34 +89,28 @@ async function transcribeVoice(audioBase64, mimeType) {
         },
       ],
     }],
-    generationConfig: {
-      temperature: 0,
-    },
+    generationConfig: { temperature: 0 },
   })
-
-  return transcript
 }
 
 async function scoreTranscript(transcript) {
   const text = await callGemini({
     contents: [{
       role: 'user',
-      parts: [{
-        text: `${TRIAGE_SYSTEM_PROMPT}\n\nTranscript:\n${transcript}`,
-      }],
+      parts: [{ text: `${TRIAGE_SYSTEM_PROMPT}\n\nTranscript:\n${transcript}` }],
     }],
     generationConfig: {
       temperature: 0,
       responseMimeType: 'application/json',
       responseSchema: {
-        type: 'object',
+        type: 'OBJECT',
         properties: {
           y_score_raw: {
-            type: 'number',
+            type: 'NUMBER',
             description: 'Estimated positive mental wellbeing score on the MHC-SF raw range 0-70.',
           },
           x_score_raw: {
-            type: 'number',
+            type: 'NUMBER',
             description: 'Estimated psychological distress score on the PHQ-ADS raw range 0-48.',
           },
         },
@@ -160,8 +155,6 @@ async function saveAndRecommend({ userId, mode, y_score_raw, x_score_raw, safety
   const today = new Date().toISOString().split('T')[0]
   const y_score_norm = parseFloat(((y_score_raw / 70) * 100).toFixed(2))
   const x_score_norm = parseFloat(((x_score_raw / 48) * 100).toFixed(2))
-
-  // Store assessment mode only; raw voice/audio/transcript is deliberately not persisted.
   const storedAnswers = JSON.stringify({ mode })
 
   const { rows: checkinRows } = await pool.query(
@@ -182,13 +175,9 @@ async function saveAndRecommend({ userId, mode, y_score_raw, x_score_raw, safety
   })
   platforms.sort((a, b) => a.distance - b.distance)
 
-  return {
-    checkin: checkinRows[0],
-    recommendations: platforms.slice(0, 3),
-  }
+  return { checkin: checkinRows[0], recommendations: platforms.slice(0, 3) }
 }
 
-// ── POST /api/checkins — questionnaire OR voice assessment ───────────────
 router.post('/', requireUser, async (req, res) => {
   const { mode = 'questionnaire', answers, audioBase64, mimeType } = req.body || {}
 
@@ -200,8 +189,6 @@ router.post('/', requireUser, async (req, res) => {
       if (!transcript) return res.status(400).json({ error: 'Could not detect speech in the recording' })
 
       const { y_score_raw, x_score_raw } = await scoreTranscript(transcript)
-
-      // Conservative explicit-language safety flag. Raw transcript is not persisted.
       const safetyFlag = /\b(kill myself|killing myself|suicide|suicidal|self[- ]?harm|hurt myself|harm myself|better off dead|want to die|wish i were dead)\b/i.test(transcript)
 
       return res.json(await saveAndRecommend({
@@ -233,7 +220,6 @@ router.post('/', requireUser, async (req, res) => {
   }
 })
 
-// ── GET /api/checkins — current user's full history ──────────────────────
 router.get('/', requireUser, async (req, res) => {
   try {
     const { rows } = await pool.query(
