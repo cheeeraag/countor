@@ -1,3 +1,4 @@
+const crypto = require('node:crypto')
 const pool = require('../db')
 
 let schemaReady = false
@@ -37,14 +38,19 @@ async function ensurePrivacySchema() {
 
 async function ensureMemberCode(userId) {
   await ensurePrivacySchema()
-  const { rows } = await pool.query(`
-    UPDATE users
-    SET member_code = 'CNT-' || LPAD(nextval('countor_member_code_seq')::text, 10, '0')
-    WHERE id = $1 AND member_code IS NULL
-    RETURNING member_code`, [userId])
-  if (rows.length) return rows[0].member_code
   const existing = await pool.query('SELECT member_code FROM users WHERE id = $1', [userId])
-  return existing.rows[0]?.member_code || null
+  if (existing.rows[0]?.member_code) return existing.rows[0].member_code
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const digits = crypto.randomInt(0, 10000000000).toString().padStart(10, '0')
+    const code = `CNT-${digits}`
+    const { rows } = await pool.query(`
+      UPDATE users SET member_code=$1 WHERE id=$2 AND member_code IS NULL RETURNING member_code`, [code, userId])
+    if (rows.length) return rows[0].member_code
+    const retry = await pool.query('SELECT member_code FROM users WHERE id=$1', [userId])
+    if (retry.rows[0]?.member_code) return retry.rows[0].member_code
+  }
+  throw new Error('Could not allocate a Countor member code')
 }
 
 module.exports = { ensurePrivacySchema, ensureMemberCode }
