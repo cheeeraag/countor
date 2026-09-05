@@ -67,7 +67,7 @@ router.post('/signup', async (req, res) => {
     const { rows } = await pool.query(
       `INSERT INTO users (name, email, password_hash, role, org_id, approved, department, directory_visible)
        VALUES ($1,$2,$3,'user',$4,true,$5,$6) RETURNING *`,
-      [name.trim(), normalizedEmail, resolvedOrgId, department?.trim() || null, directoryVisible !== false]
+      [name.trim(), normalizedEmail, hash, resolvedOrgId, department?.trim() || null, directoryVisible !== false]
     )
     const memberCode = await ensureMemberCode(rows[0].id)
     return res.json({ token: sign(rows[0]), user: safe(rows[0], memberCode) })
