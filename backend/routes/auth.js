@@ -64,10 +64,17 @@ router.post('/signup', async (req, res) => {
       }
     }
 
+    // Keep this INSERT to exactly five bind parameters. Department and the
+    // directory preference travel together as one JSON value, avoiding the
+    // PostgreSQL extended-protocol mismatch that previously caused signup 500s.
+    const privacyPayload = JSON.stringify({
+      department: department?.trim() || null,
+      directoryVisible: directoryVisible !== false,
+    })
     const { rows } = await pool.query(
       `INSERT INTO users (name, email, password_hash, role, org_id, approved, department, directory_visible)
-       VALUES ($1,$2,$3,'user',$4,true,$5,$6) RETURNING *`,
-      [name.trim(), normalizedEmail, hash, resolvedOrgId, department?.trim() || null, directoryVisible !== false]
+       VALUES ($1,$2,$3,'user',$4,true,($5::jsonb->>'department'),COALESCE(($5::jsonb->>'directoryVisible')::boolean,true)) RETURNING *`,
+      [name.trim(), normalizedEmail, hash, resolvedOrgId, privacyPayload]
     )
     const memberCode = await ensureMemberCode(rows[0].id)
     return res.json({ token: sign(rows[0]), user: safe(rows[0], memberCode) })
