@@ -1,4 +1,3 @@
-import logoImg from './assets/logo.png'
 import { useState } from 'react'
 import { Analytics } from '@vercel/analytics/react'
 import { AppProvider, useApp } from './context/AppContext'
@@ -23,29 +22,25 @@ function AssessmentChooser({ onQuestionnaire, onVoice, onBack }) {
         <button className="btn-ghost" onClick={onBack} style={{ marginBottom:24, fontSize:14 }}>← Back</button>
         <div className="card" style={{ padding:32 }}>
           <div style={{ textAlign:'center', marginBottom:28 }}>
-            <p style={{ fontSize:48, marginBottom:10 }}>🧠</p>
-            <h1 style={{ fontSize:24, fontFamily:"'Lora', serif", marginBottom:8 }}>How would you like to check in?</h1>
+            <p style={{ fontSize:48, marginBottom:10 }}>✦</p>
+            <h1 style={{ fontSize:24, marginBottom:8 }}>How would you like to check in?</h1>
             <p style={{ fontSize:14, color:'var(--muted)', lineHeight:1.7 }}>
               Choose the format that feels most comfortable. Both options map your check-in to the same 2D wellbeing and distress framework.
             </p>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:14 }}>
-            <button onClick={onVoice} style={{ textAlign:'left', padding:22, border:'2px solid var(--border)', borderRadius:14, background:'var(--white)', cursor:'pointer' }}>
-              <div style={{ fontSize:30, marginBottom:10 }}>🎤</div>
-              <h3 style={{ fontSize:16, marginBottom:6 }}>Voice assessment</h3>
+            <button onClick={onVoice} style={{ textAlign:'left', padding:22, border:'2px solid var(--border)', borderRadius:16, background:'var(--white)', cursor:'pointer' }}>
+              <div style={{ fontSize:30, marginBottom:10 }}>🎤</div><h3 style={{ fontSize:16, marginBottom:6 }}>Voice check-in</h3>
               <p style={{ fontSize:12, color:'var(--muted)', lineHeight:1.6, marginBottom:12 }}>Speak naturally for about 60 seconds. No survey questions.</p>
-              <span style={{ fontSize:11, fontWeight:700, color:'var(--green)' }}>Recommended · ~60 sec →</span>
+              <span style={{ fontSize:11, fontWeight:800, color:'var(--green)' }}>Recommended · ~60 sec →</span>
             </button>
-            <button onClick={onQuestionnaire} style={{ textAlign:'left', padding:22, border:'2px solid var(--border)', borderRadius:14, background:'var(--white)', cursor:'pointer' }}>
-              <div style={{ fontSize:30, marginBottom:10 }}>📋</div>
-              <h3 style={{ fontSize:16, marginBottom:6 }}>Questionnaire</h3>
-              <p style={{ fontSize:12, color:'var(--muted)', lineHeight:1.6, marginBottom:12 }}>Complete the existing 30-question MHC-SF + PHQ-ADS assessment.</p>
-              <span style={{ fontSize:11, fontWeight:700, color:'var(--green)' }}>Validated questions · ~3 min →</span>
+            <button onClick={onQuestionnaire} style={{ textAlign:'left', padding:22, border:'2px solid var(--border)', borderRadius:16, background:'var(--white)', cursor:'pointer' }}>
+              <div style={{ fontSize:30, marginBottom:10 }}>📋</div><h3 style={{ fontSize:16, marginBottom:6 }}>Questionnaire</h3>
+              <p style={{ fontSize:12, color:'var(--muted)', lineHeight:1.6, marginBottom:12 }}>Complete the 30-question MHC-SF + PHQ-ADS assessment.</p>
+              <span style={{ fontSize:11, fontWeight:800, color:'var(--green)' }}>Structured check-in · ~3 min →</span>
             </button>
           </div>
-          <p style={{ fontSize:11, color:'var(--muted)', textAlign:'center', marginTop:20 }}>
-            Countor is a screening tool, not a medical device.
-          </p>
+          <p style={{ fontSize:11, color:'var(--muted)', textAlign:'center', marginTop:20 }}>Countor is a screening tool, not a medical device.</p>
         </div>
       </div>
     </div>
@@ -53,79 +48,42 @@ function AssessmentChooser({ onQuestionnaire, onVoice, onBack }) {
 }
 
 function AppInner() {
-  const { user, saveCheckin, isAdmin } = useApp()
+  const { user, saveCheckin, isAdmin, recommendations } = useApp()
   const [page, setPage] = useState('dashboard')
   const [subPage, setSubPage] = useState(null)
   const [lastResult, setLastResult] = useState(null)
 
   if (!user) return <AuthScreen />
+  if (page === 'checkin' && subPage === 'chooser') return <AssessmentChooser onQuestionnaire={() => setSubPage('intro')} onVoice={() => setSubPage('voice')} onBack={() => setPage('dashboard')} />
+  if (page === 'checkin' && subPage === 'intro') return <QuestionnaireIntro onStart={() => setSubPage('questions')} onBack={() => setSubPage('chooser')} />
 
-  if (page === 'checkin' && subPage === 'chooser') {
-    return <AssessmentChooser onQuestionnaire={() => setSubPage('intro')} onVoice={() => setSubPage('voice')} onBack={() => setPage('dashboard')} />
-  }
+  if (page === 'checkin' && subPage === 'questions') return (
+    <CheckinQuestionnaire onComplete={async (answers) => {
+      try { const res = await saveCheckin({ mode:'questionnaire', answers }); setLastResult(res); setPage('results'); setSubPage(null) }
+      catch (e) { console.error('Failed to save check-in:', e) }
+    }} onBack={() => setSubPage('intro')} />
+  )
 
-  if (page === 'checkin' && subPage === 'intro') {
-    return <QuestionnaireIntro onStart={() => setSubPage('questions')} onBack={() => setSubPage('chooser')} />
-  }
-
-  if (page === 'checkin' && subPage === 'questions') {
-    return (
-      <CheckinQuestionnaire
-        onComplete={async (answers) => {
-          try {
-            const res = await saveCheckin({ mode: 'questionnaire', answers })
-            setLastResult(res)
-            setPage('results')
-            setSubPage(null)
-          } catch (e) {
-            console.error('Failed to save check-in:', e)
-          }
-        }}
-        onBack={() => setSubPage('intro')}
-      />
-    )
-  }
-
-  if (page === 'checkin' && subPage === 'voice') {
-    return (
-      <VoiceAssessment
-        onComplete={async (payload) => {
-          try {
-            const res = await saveCheckin(payload)
-            setLastResult(res)
-            setPage('results')
-            setSubPage(null)
-          } catch (e) {
-            console.error('Failed to save voice check-in:', e)
-            throw e
-          }
-        }}
-        onBack={() => setSubPage('chooser')}
-      />
-    )
-  }
+  if (page === 'checkin' && subPage === 'voice') return (
+    <VoiceAssessment onComplete={async (payload) => {
+      try { const res = await saveCheckin(payload); setLastResult(res); setPage('results'); setSubPage(null) }
+      catch (e) { console.error('Failed to save voice check-in:', e); throw e }
+    }} onBack={() => setSubPage('chooser')} />
+  )
 
   const startCheckin = () => { setPage('checkin'); setSubPage('chooser') }
-
-  const navigate = (p) => {
-    if (p === 'admin' && !isAdmin) return
-    setPage(p)
-    setSubPage(null)
-    if (p === 'checkin') setSubPage('chooser')
-  }
+  const navigate = (p) => { if (p === 'admin' && !isAdmin) return; setPage(p); setSubPage(null); if (p === 'checkin') setSubPage('chooser') }
 
   return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', background:'var(--cream)' }}>
       <TopNav currentPage={page} onNavigate={navigate} />
-      <main style={{ maxWidth:760, margin:'0 auto', width:'100%', flex:1 }}>
-        {page === 'dashboard' && <Dashboard onStartCheckin={startCheckin} />}
+      <main style={{ width:'100%', flex:1 }}>
+        {page === 'dashboard' && <Dashboard onStartCheckin={startCheckin} recommendations={recommendations} />}
         {page === 'community' && <CommunityPage />}
         {page === 'therapists' && <TherapistDirectory />}
         {page === 'streaks' && <StreaksPage onStartCheckin={startCheckin} />}
         {page === 'admin' && isAdmin && <AdminPage />}
-        {page === 'results' && lastResult && (
-          <ResultsScreen result={lastResult} onDashboard={() => setPage('dashboard')} onRetake={startCheckin} />
-        )}
+        {page === 'results' && lastResult && <ResultsScreen result={lastResult} onDashboard={() => setPage('dashboard')} onRetake={startCheckin} />}
       </main>
       <Footer />
     </div>
@@ -133,10 +91,5 @@ function AppInner() {
 }
 
 export default function App() {
-  return (
-    <AppProvider>
-      <AppInner />
-      <Analytics />
-    </AppProvider>
-  )
+  return <AppProvider><AppInner /><Analytics /></AppProvider>
 }
