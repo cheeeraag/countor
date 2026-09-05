@@ -68,7 +68,6 @@ Set `VITE_API_URL` to the deployed backend URL and `VITE_SUPERADMIN_EMAIL` to th
 | POST | `/api/checkins` | user | Save today's questionnaire or voice check-in |
 | GET | `/api/checkins` | user | Current user's history |
 | GET | `/api/checkins/recommendations` | user | Latest Euclidean resource matches |
-| GET | `/api/privacy` | — | — |
 | PUT | `/api/privacy` | user | Update department directory visibility |
 | GET | `/api/support` | user | User support requests |
 | POST | `/api/support` | user | Request support |
