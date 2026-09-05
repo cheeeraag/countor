@@ -2,164 +2,101 @@
 
 React + Vite frontend with a Node.js + Express + PostgreSQL backend.
 
----
+## Product architecture
 
-## 📁 Project Structure
+Countor uses a two-dimensional **Wellness × Distress** framework. Users can complete a structured 30-item check-in or a voice-first free-form check-in. Voice responses are transcribed and then estimated against the same 30 dimensions; the result is an estimate from unstructured language, not an actual administration of a validated questionnaire and not a diagnosis.
+
+Personalized resources are selected using Euclidean distance from the user's latest normalized position to platform anchors.
+
+### Privacy-first organization model
+
+- Individual users see their own history, position and recommendations.
+- Organization dashboards show aggregate wellness, distress and engagement only.
+- Organization admins do not receive employee names beside individual scores or individual risk labels.
+- Each member has a persistent display identity in the form **`CNT-XXXXXXXXXX`** (10 digits). The database user ID remains a UUID and the display code is not a security credential.
+- Department visibility is opt-in during organization onboarding and can be changed later from Profile → Privacy.
+- Support requests use the Countor Member ID for pseudonymous communication rather than attaching a wellness score to an identity.
+- Safety signals remain aggregate in organization analytics and are not presented as an employee risk list.
+
+## Project structure
 
 ```
-countor-v4/
+countor/
 ├── backend/          ← Express REST API
 └── frontend/         ← React + Vite app
 ```
 
----
+## Quick setup
 
-## 🚀 Quick Setup
+### Database
 
-### Step 1 — Database (PostgreSQL)
+Run `backend/db/schema.sql` against PostgreSQL. The application also safely ensures the privacy/support additions exist at runtime for existing deployments.
 
-**Option A: Supabase (recommended, free)**
-1. Go to [supabase.com](https://supabase.com) → New project
-2. Go to **SQL Editor** → paste contents of `backend/db/schema.sql` → Run
-3. Go to **Settings → Database → Connection string (URI)** → copy it
-
-**Option B: Railway**
-1. Go to [railway.app](https://railway.app) → New project → PostgreSQL
-2. Click the DB → **Connect tab** → copy the connection URL
-3. Open a query editor → paste `backend/db/schema.sql` → Run
-
-**Option C: Local PostgreSQL**
-```bash
-psql -U postgres -c "CREATE DATABASE countor;"
-psql -U postgres -d countor -f backend/db/schema.sql
-# Connection string: postgresql://postgres:password@localhost:5432/countor
-```
-
----
-
-### Step 2 — Backend
+### Backend
 
 ```bash
 cd backend
 cp .env.example .env
-# Edit .env — set DATABASE_URL, JWT_SECRET, SUPERADMIN_EMAIL
 npm install
 npm run dev
-# ✅ API running on http://localhost:3001
 ```
 
-**Generate a JWT secret:**
-```bash
-node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
-```
+Required environment variables include `DATABASE_URL`, `JWT_SECRET`, `SUPERADMIN_EMAIL`, and `FRONTEND_URL`. `GEMINI_API_KEY` is required for voice check-ins; `GEMINI_MODEL` defaults to `gemini-3.6-flash`.
 
----
-
-### Step 3 — Frontend
+### Frontend
 
 ```bash
 cd frontend
 cp .env.example .env
-# VITE_API_URL=http://localhost:3001
 npm install
 npm run dev
-# ✅ App running on http://localhost:5173
 ```
 
----
+Set `VITE_API_URL` to the deployed backend URL and `VITE_SUPERADMIN_EMAIL` to the same superadmin email.
 
-## 🌐 Production Deployment
-
-### Backend → Railway or Render
-
-**Railway:**
-```bash
-# In /backend folder
-railway login
-railway init
-railway up
-# Set env vars in Railway dashboard
-```
-
-**Render:**
-1. Connect GitHub repo
-2. New Web Service → Root directory: `backend`
-3. Build command: `npm install`
-4. Start command: `node server.js`
-5. Add environment variables in the Render dashboard
-
-### Frontend → Vercel
-
-```bash
-cd frontend
-npm run build
-vercel --prod
-# Set VITE_API_URL to your deployed backend URL
-```
-
----
-
-## 🔑 Environment Variables
-
-### Backend (`backend/.env`)
-
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `JWT_SECRET` | Long random string for signing tokens |
-| `JWT_EXPIRES_IN` | Token expiry e.g. `7d` |
-| `PORT` | Server port (default `3001`) |
-| `SUPERADMIN_EMAIL` | Your email — gets superadmin role on signup |
-| `FRONTEND_URL` | Deployed frontend URL (for CORS) |
-
-### Frontend (`frontend/.env`)
-
-| Variable | Description |
-|---|---|
-| `VITE_API_URL` | Backend URL e.g. `https://countor-api.railway.app` |
-| `VITE_SUPERADMIN_EMAIL` | Must match backend `SUPERADMIN_EMAIL` |
-
----
-
-## 🗺️ API Reference
+## API reference
 
 | Method | Route | Auth | Description |
 |---|---|---|---|
-| POST | `/api/auth/signup` | — | Register user / org request |
-| POST | `/api/auth/login` | — | Login, returns JWT |
-| GET | `/api/auth/me` | JWT | Get current user |
-| GET | `/api/orgs/approved` | — | Approved orgs for signup dropdown |
-| GET | `/api/orgs` | superadmin | All orgs with member counts |
-| PUT | `/api/orgs/:id/approve` | superadmin | Approve org + promote user |
-| PUT | `/api/orgs/:id/reject` | superadmin | Reject org request |
-| POST | `/api/checkins` | user | Save today's check-in (upsert) |
-| GET | `/api/checkins` | user | Current user's full history |
+| POST | `/api/auth/signup` | — | Register member / organization request |
+| POST | `/api/auth/login` | — | Login and return JWT |
+| GET | `/api/auth/me` | JWT | Current user and privacy metadata |
+| GET | `/api/orgs/approved` | — | Approved organization selector |
+| GET | `/api/orgs` | superadmin | Organization overview |
+| PUT | `/api/orgs/:id/approve` | superadmin | Approve organization |
+| PUT | `/api/orgs/:id/reject` | superadmin | Reject organization |
+| POST | `/api/checkins` | user | Save today's questionnaire or voice check-in |
+| GET | `/api/checkins` | user | Current user's history |
+| GET | `/api/checkins/recommendations` | user | Latest Euclidean resource matches |
+| GET | `/api/privacy` | — | — |
+| PUT | `/api/privacy` | user | Update department directory visibility |
+| GET | `/api/support` | user | User support requests |
+| POST | `/api/support` | user | Request support |
+| POST | `/api/support/:id/messages` | user | Message a support request |
+| GET | `/api/admin/stats` | admin | Aggregate platform/org analytics |
+| GET | `/api/admin/users` | admin | Privacy-safe engagement summary |
+| GET | `/api/admin/support` | admin | Pseudonymous support queue |
+| POST | `/api/admin/support/:id/messages` | admin | Send supportive message |
+| GET | `/api/admin/export` | admin | Aggregate CSV export |
 | GET | `/api/posts` | optional | Community feed |
-| POST | `/api/posts` | user | Create post |
-| DELETE | `/api/posts/:id` | user/superadmin | Delete post |
-| POST | `/api/posts/:id/upvote` | user | Toggle upvote |
-| GET | `/api/posts/:id/comments` | optional | Get comments |
-| POST | `/api/posts/:id/comments` | user | Add comment |
-| DELETE | `/api/comments/:id` | user/superadmin | Delete comment |
-| POST | `/api/comments/:id/upvote` | user | Toggle upvote |
-| GET | `/api/admin/stats` | admin | Overview numbers |
-| GET | `/api/admin/users` | admin | Users list (scoped by role) |
-| GET | `/api/admin/export` | admin | CSV download (scoped by role) |
+| POST | `/api/posts` | user | Create community post |
 
----
-
-## 👤 Roles
+## Roles
 
 | Role | Access |
 |---|---|
-| `user` | Dashboard, check-in, community, therapists, streaks |
-| `org_admin` | All of above + Org Admin dashboard (their org only) |
-| `superadmin` | Everything + all users, all orgs, org approvals |
-| `org_admin_pending` | Locked to waiting screen until approved |
-| `rejected` | Locked to rejection screen |
+| `user` | Dashboard, check-in, community, therapists, streaks, support |
+| `org_admin` | Member experience + aggregate organization analytics + support workflow |
+| `superadmin` | Platform overview, organization management, aggregate analytics and support workflow |
+| `org_admin_pending` | Waiting room until organization approval |
+| `rejected` | Rejection state |
 
----
+## Voice check-in
 
-## ⚠️ Disclaimer
+The voice flow is intentionally frictionless: record → Gemini transcription → Gemini structured 30-item estimation → Countor calculates the Wellness × Distress scores → Euclidean resource matching. The backend allows up to 180 seconds for each Gemini operation and retries transient connection/timeout failures.
 
-Countor is a screening tool, not a medical device. Crisis support: **iCall 9152987821** (India, free, Mon–Sat 9am–10pm).
+The UI uses a voice orb rather than a microphone emoji, recommends about 60 seconds without making it a task, supports English/Hindi prompts, and clearly communicates that the result is an estimate.
+
+## Disclaimer
+
+Countor is a screening and wellness-support product, not a medical device or diagnostic service. Crisis support and safety escalation should use a dedicated safety protocol rather than relying on the dashboard risk labels.
