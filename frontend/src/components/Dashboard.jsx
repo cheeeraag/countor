@@ -24,7 +24,7 @@ function Matrix({ x, y, compact = false }) {
       </div>
       <div className="matrix-y-label">Wellness (Y)</div>
       <div className="matrix-x-label">Distress (X)</div>
-      {!compact && <div className="matrix-caption"><span>Low</span><strong>{pos.label}</strong><span>High</span></div>}
+      {!compact && <div className="matrix-caption"><span>Low</span><span>High</span></div>}
     </div>
   )
 }
