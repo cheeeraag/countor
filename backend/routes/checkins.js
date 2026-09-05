@@ -201,7 +201,7 @@ async function scoreTranscript(transcript) {
           const questionNumber = index + 1
           return [`q${questionNumber}`, {
             type: 'INTEGER',
-            minimum: questionNumber <= 14 ? 0 : 0,
+            minimum: 0,
             maximum: questionNumber <= 14 ? 5 : 3,
             description: questionNumber <= 14 ? 'Estimated MHC-SF-style frequency, integer 0-5.' : 'Estimated PHQ-ADS component frequency, integer 0-3.',
           }]
@@ -252,6 +252,15 @@ function scoreQuestionnaire(answers) {
   }
 }
 
+function rankPlatforms(platforms, x_score_norm, y_score_norm) {
+  return platforms
+    .map(p => ({
+      ...p,
+      distance: Math.sqrt(Math.pow(x_score_norm - p.anchor_x, 2) + Math.pow(y_score_norm - p.anchor_y, 2)),
+    }))
+    .sort((a, b) => a.distance - b.distance)
+}
+
 async function saveAndRecommend({ userId, mode, y_score_raw, x_score_raw, safetyFlag = false, answers = null }) {
   const today = new Date().toISOString().split('T')[0]
   const y_score_norm = parseFloat(((y_score_raw / 70) * 100).toFixed(2))
@@ -268,15 +277,9 @@ async function saveAndRecommend({ userId, mode, y_score_raw, x_score_raw, safety
   )
 
   const { rows: platforms } = await pool.query(`SELECT * FROM platforms`)
-  platforms.forEach(p => {
-    p.distance = Math.sqrt(
-      Math.pow(x_score_norm - p.anchor_x, 2) +
-      Math.pow(y_score_norm - p.anchor_y, 2)
-    )
-  })
-  platforms.sort((a, b) => a.distance - b.distance)
+  const recommendations = rankPlatforms(platforms, x_score_norm, y_score_norm)
 
-  return { checkin: checkinRows[0], recommendations: platforms.slice(0, 3) }
+  return { checkin: checkinRows[0], recommendations: recommendations.slice(0, 3) }
 }
 
 router.post('/', requireUser, async (req, res) => {
@@ -337,6 +340,27 @@ router.get('/', requireUser, async (req, res) => {
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Failed to fetch history' })
+  }
+})
+
+router.get('/recommendations', requireUser, async (req, res) => {
+  try {
+    const { rows: checkins } = await pool.query(
+      `SELECT x_score_norm, y_score_norm
+       FROM checkins
+       WHERE user_id = $1
+       ORDER BY date DESC, created_at DESC
+       LIMIT 1`,
+      [req.user.id]
+    )
+    if (!checkins.length) return res.json([])
+
+    const { rows: platforms } = await pool.query(`SELECT * FROM platforms`)
+    const { x_score_norm, y_score_norm } = checkins[0]
+    res.json(rankPlatforms(platforms, Number(x_score_norm), Number(y_score_norm)).slice(0, 3))
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to fetch recommendations' })
   }
 })
 
